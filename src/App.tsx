@@ -32,6 +32,52 @@ export default function App() {
   const [authError, setAuthError] = useState('');
 
   // Fetch companies for login/register
+  // Data Starter Script (Run once for admin to setup Yanhee)
+  const setupDataStarter = async () => {
+    if (!user || userProfile?.role !== 'admin') return;
+    
+    try {
+      setLoading(true);
+      
+      // 1. Create Yanhee Company if not exists
+      const qCompanies = query(collection(db, 'companies'));
+      const companySnap = await getDocFromServer(doc(db, 'companies', 'YANHEE')).catch(() => null);
+      
+      let yanheeExists = false;
+      companies.forEach(c => {
+        if (c.code === 'YANHEE') yanheeExists = true;
+      });
+
+      if (!yanheeExists) {
+        await addDoc(collection(db, 'companies'), {
+          code: 'YANHEE',
+          name: 'บ.ยันฮี',
+          createdAt: Date.now()
+        });
+        console.log("Created Yanhee company");
+      }
+
+      // 2. Update all existing departments to belong to YANHEE
+      const qDepts = query(collection(db, 'departments'));
+      // Note: We can't easily update all docs without fetching them first, but we already have them in state!
+      const updatePromises = departments
+        .filter(d => !d.companyCode) // Only update those without a company code
+        .map(d => updateDoc(doc(db, 'departments', d.id), { companyCode: 'YANHEE' }));
+      
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        console.log(`Updated ${updatePromises.length} departments to YANHEE`);
+      }
+
+      alert('ตั้งค่าข้อมูลเริ่มต้น (Data Starter) สำหรับ บ.ยันฮี เรียบร้อยแล้ว!');
+    } catch (err) {
+      console.error("Error setting up data starter:", err);
+      alert('เกิดข้อผิดพลาดในการตั้งค่าข้อมูลเริ่มต้น');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const q = query(collection(db, 'companies'), orderBy('code', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -59,6 +105,19 @@ export default function App() {
           const profileDoc = await getDocFromServer(doc(db, 'users', user.uid));
           if (profileDoc.exists()) {
             setUserProfile(profileDoc.data() as UserProfile);
+          } else {
+             // For old users (like prem) who don't have a profile yet
+             const isSpecialAdmin = user.email?.startsWith('prem@') || user.displayName?.toLowerCase() === 'prem';
+             const fallbackProfile: UserProfile = {
+                uid: user.uid,
+                username: user.displayName || user.email?.split('@')[0] || 'Unknown',
+                role: isSpecialAdmin ? 'admin' : 'user',
+                companyCode: isSpecialAdmin ? 'ALL' : 'UNKNOWN',
+                createdAt: Date.now()
+             };
+             setUserProfile(fallbackProfile);
+             // Save it so it exists next time
+             await setDoc(doc(db, 'users', user.uid), fallbackProfile);
           }
         } catch (err) {
           console.error("Error fetching user profile", err);
@@ -137,16 +196,27 @@ export default function App() {
       return;
     }
 
-    // สร้าง dummy email จาก username
-    // Include company in dummy email to allow same username across different companies
-    // For 'prem' admin, keep it simple
+    // Create dummy email
+    // Check if user exists in Firebase first to get correct email format
+    // Since we don't have a way to check if user exists without trying to log in,
+    // and old 'prem' account might have been created as prem@pam.local,
+    // we should try that first for admin.
     const isSpecialAdmin = authUsername.toLowerCase() === 'prem';
     const emailPrefix = isSpecialAdmin ? authUsername.toLowerCase() : `${authUsername.toLowerCase()}.${authCompany.toLowerCase()}`;
     const dummyEmail = `${emailPrefix}@pam.local`;
 
     try {
       if (isLoginMode) {
-        await signInWithEmailAndPassword(auth, dummyEmail, authPassword);
+        try {
+          await signInWithEmailAndPassword(auth, dummyEmail, authPassword);
+        } catch (err: any) {
+          // If admin login fails with company-specific email, try generic email (backward compatibility)
+          if (isSpecialAdmin && err.code === 'auth/user-not-found') {
+             await signInWithEmailAndPassword(auth, `${authUsername.toLowerCase()}@pam.local`, authPassword);
+          } else {
+            throw err;
+          }
+        }
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, dummyEmail, authPassword);
         
@@ -333,6 +403,15 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {userProfile?.role === 'admin' && (
+              <button
+                onClick={setupDataStarter}
+                className="hidden sm:flex items-center gap-2 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-amber-200 transition-colors mr-2"
+                title="ตั้งค่าข้อมูลเริ่มต้น (ยันฮี)"
+              >
+                <span>Run Data Starter</span>
+              </button>
+            )}
             <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full">
               <UserIcon size={14} className="text-slate-500" />
               <span className="text-xs font-bold text-slate-700 max-w-20 truncate">
