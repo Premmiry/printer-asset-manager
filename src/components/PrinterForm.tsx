@@ -120,22 +120,33 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       // 1. Remove all spaces to handle cases where OCR reads "H R - 5 6"
       const noSpaceText = rawText.replace(/\s+/g, '');
       
-      // 2. Use Regex to find the pattern of asset ID (e.g., HR-56/00051 or PRT-001)
-      // Looks for: At least 2 letters, a dash, and some numbers. Optionally followed by a slash and more numbers.
-      const match = noSpaceText.match(/[A-Z]{2,}-\d+(?:\/\d+)?/i);
-      
+      // 2. Extract potential ID using multiple Regex patterns to be more precise
       let finalId = '';
-      if (match) {
-        finalId = match[0].toUpperCase();
+      
+      // Pattern 1: Exact match for HR-XX/XXXXX format (e.g. HR-56/00051)
+      const exactMatch = noSpaceText.match(/[A-Z]{2,}-\d{2,}\/\d{4,}/i);
+      
+      // Pattern 2: More generic match, at least 2 letters, dash, numbers, optionally slash and numbers
+      const genericMatch = noSpaceText.match(/[A-Z]{2,}-\d+(?:\/\d+)?/i);
+
+      if (exactMatch) {
+        finalId = exactMatch[0].toUpperCase();
+      } else if (genericMatch) {
+        finalId = genericMatch[0].toUpperCase();
       } else {
-        // Fallback: Just strip out completely invalid characters
-        finalId = rawText.replace(/[^a-zA-Z0-9-/]/g, '').toUpperCase();
-        if (finalId.length > 20) {
-          finalId = finalId.substring(0, 20); // Keep it short if it's garbage
+        // Fallback: If no pattern matches, try to find ANY sequence that looks remotely like an ID
+        // Look for something with letters, dashes, slashes, and numbers, but NOT pure garbage
+        // e.g. PRT-001, COMP-123
+        const fallbackMatch = noSpaceText.match(/[A-Z0-9]{2,}[-/][A-Z0-9]+/i);
+        if (fallbackMatch) {
+            finalId = fallbackMatch[0].toUpperCase();
         }
       }
 
+      // If we got a result, clean it up just in case
       if (finalId) {
+        // Remove any trailing non-alphanumeric chars if they somehow sneaked in
+        finalId = finalId.replace(/[^A-Z0-9]$/, '');
         setOcrResult(finalId);
         setActiveOcrIndex(index);
         setShowOcrReview(true);
