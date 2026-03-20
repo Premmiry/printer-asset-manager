@@ -40,6 +40,8 @@ export default function App() {
         ...doc.data()
       })) as Company[];
       setCompanies(data);
+      
+      // Auto-select the first company if not set and data is available
       if (data.length > 0 && !authCompany) {
         setAuthCompany(data[0].code);
       }
@@ -128,9 +130,19 @@ export default function App() {
       setAuthError('กรุณาเลือกบริษัท');
       return;
     }
+    
+    // Check if company is selected for normal users during login as well
+    if (isLoginMode && !authCompany && authUsername.toLowerCase() !== 'prem') {
+      setAuthError('กรุณาเลือกบริษัทที่ต้องการเข้าสู่ระบบ');
+      return;
+    }
 
     // สร้าง dummy email จาก username
-    const dummyEmail = `${authUsername.toLowerCase()}@pam.local`;
+    // Include company in dummy email to allow same username across different companies
+    // For 'prem' admin, keep it simple
+    const isSpecialAdmin = authUsername.toLowerCase() === 'prem';
+    const emailPrefix = isSpecialAdmin ? authUsername.toLowerCase() : `${authUsername.toLowerCase()}.${authCompany.toLowerCase()}`;
+    const dummyEmail = `${emailPrefix}@pam.local`;
 
     try {
       if (isLoginMode) {
@@ -252,7 +264,7 @@ export default function App() {
               />
             </div>
 
-            {!isLoginMode && authUsername.toLowerCase() !== 'prem' && (
+            {authUsername.toLowerCase() !== 'prem' && (
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">บริษัท</label>
                 <select
