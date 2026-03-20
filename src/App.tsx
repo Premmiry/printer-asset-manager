@@ -175,7 +175,7 @@ export default function App() {
       })) as Printer[];
       
       // Filter by company for EVERYONE (including admin)
-      // Admin might still have 'ALL' if they haven't re-logged in, handle that case gracefully
+      // Admin with 'ALL' companyCode sees everything, otherwise filter by companyCode
       if (userProfile.companyCode === 'ALL') {
         setPrinters(printerData);
       } else {
@@ -240,26 +240,19 @@ export default function App() {
           // Login
           const userCredential = await signInWithEmailAndPassword(auth, dummyEmail, authPassword);
           
-          // Verify company match for non-admin users
-          if (!isSpecialAdmin) {
-            const profileDoc = await getDocFromServer(doc(db, 'users', userCredential.user.uid));
-            if (profileDoc.exists()) {
-              const data = profileDoc.data() as UserProfile;
-              if (data.companyCode !== authCompany) {
-                // If company doesn't match, sign out and throw error
-                await signOut(auth);
-                throw new Error('COMPANY_MISMATCH');
-              }
-            }
-          } else {
-            // Update admin's company code to match selection for this session
-            const profileDoc = await getDocFromServer(doc(db, 'users', userCredential.user.uid));
-            if (profileDoc.exists()) {
-              const data = profileDoc.data() as UserProfile;
-              if (data.companyCode !== authCompany) {
-                data.companyCode = authCompany;
-                await setDoc(doc(db, 'users', userCredential.user.uid), data);
-              }
+          // Verify company match for ALL users (including admin)
+          const profileDoc = await getDocFromServer(doc(db, 'users', userCredential.user.uid));
+          if (profileDoc.exists()) {
+            const data = profileDoc.data() as UserProfile;
+            
+            // Allow login if user's company matches selected company
+            // OR if it's the old 'prem' admin and they still have 'ALL' (backward compatibility)
+            // Note: We don't auto-update admin's company to what they selected anymore, 
+            // they must explicitly match their assigned company.
+            if (data.companyCode !== authCompany && data.companyCode !== 'ALL') {
+              // If company doesn't match, sign out and throw error
+              await signOut(auth);
+              throw new Error('COMPANY_MISMATCH');
             }
           }
         } catch (err: any) {
@@ -270,13 +263,13 @@ export default function App() {
           // If admin login fails with company-specific email, try generic email (backward compatibility)
           if (isSpecialAdmin && err.code === 'auth/user-not-found') {
              const userCredential = await signInWithEmailAndPassword(auth, `${authUsername.toLowerCase()}@pam.local`, authPassword);
-             // Update admin's company code to match selection for this session
+             // Verify company match for fallback login too
              const profileDoc = await getDocFromServer(doc(db, 'users', userCredential.user.uid));
              if (profileDoc.exists()) {
                const data = profileDoc.data() as UserProfile;
-               if (data.companyCode !== authCompany) {
-                 data.companyCode = authCompany;
-                 await setDoc(doc(db, 'users', userCredential.user.uid), data);
+               if (data.companyCode !== authCompany && data.companyCode !== 'ALL') {
+                 await signOut(auth);
+                 throw new Error('COMPANY_MISMATCH');
                }
              }
           } else {

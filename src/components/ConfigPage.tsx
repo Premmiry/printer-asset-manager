@@ -76,6 +76,18 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
     };
   }, [userProfile, isAdmin]);
 
+  const handleToggleUserRole = async (userId: string, currentRole: string) => {
+    try {
+      const newRole = currentRole === 'admin' ? 'user' : 'admin';
+      await updateDoc(doc(db, 'users', userId), {
+        role: newRole
+      });
+    } catch (err) {
+      console.error('Error toggling user role:', err);
+      alert('ไม่สามารถเปลี่ยนสิทธิ์ผู้ใช้งานได้');
+    }
+  };
+
   // Filter departments based on selected company in the add form
   const filteredDepartments = departments.filter(d => !newDeptCompany || d.companyCode === newDeptCompany);
 
@@ -479,6 +491,19 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                       </span>
                     )}
                   </div>
+                  {/* Allow promoting/demoting other users, but don't allow changing own role or the main 'prem' account */}
+                  {u.uid !== userProfile?.uid && u.username.toLowerCase() !== 'prem' && (
+                    <button
+                      onClick={() => handleToggleUserRole(u.uid, u.role)}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors opacity-0 group-hover:opacity-100 ${
+                        u.role === 'admin' 
+                          ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' 
+                          : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                      }`}
+                    >
+                      {u.role === 'admin' ? 'ลดสิทธิ์เป็น User' : 'เลื่อนเป็น Admin'}
+                    </button>
+                  )}
                 </div>
               ))}
               {users.length === 0 && (
