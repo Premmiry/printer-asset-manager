@@ -1,50 +1,114 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Department } from '../types';
+import { Department, Company, UserProfile } from '../types';
 import { db, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from '../firebase';
-import { Plus, Trash2, Settings, ChevronLeft, Building2, Upload, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Settings, ChevronLeft, Building2, Upload, FileSpreadsheet, Loader2, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import * as XLSX from 'xlsx';
 
 interface ConfigPageProps {
   onBack: () => void;
+  userProfile: UserProfile | null;
 }
 
-export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack }) => {
+export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) => {
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [newCode, setNewCode] = useState('');
-  const [newName, setNewName] = useState('');
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  
+  // Department form
+  const [newDeptCode, setNewDeptCode] = useState('');
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newDeptCompany, setNewDeptCompany] = useState('');
+  
+  // Company form
+  const [newCompanyCode, setNewCompanyCode] = useState('');
+  const [newCompanyName, setNewCompanyName] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isAdmin = userProfile?.role === 'admin';
+
   useEffect(() => {
-    const q = query(collection(db, 'departments'), orderBy('code', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Department[];
-      setDepartments(data);
+    if (!userProfile) return;
+
+    // Load Companies
+    const qCompanies = query(collection(db, 'companies'), orderBy('code', 'asc'));
+    const unsubCompanies = onSnapshot(qCompanies, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Company[];
+      setCompanies(data);
+      if (data.length > 0 && !newDeptCompany) {
+        setNewDeptCompany(data[0].code);
+      }
     });
-    return () => unsubscribe();
-  }, []);
+
+    // Load Departments based on role
+    const qDepts = query(collection(db, 'departments'), orderBy('code', 'asc'));
+    const unsubDepts = onSnapshot(qDepts, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Department[];
+      if (isAdmin) {
+        setDepartments(data);
+      } else {
+        setDepartments(data.filter(d => d.companyCode === userProfile.companyCode));
+      }
+    });
+
+    // Load Users (Admin only)
+    let unsubUsers = () => {};
+    if (isAdmin) {
+      const qUsers = query(collection(db, 'users'), orderBy('username', 'asc'));
+      unsubUsers = onSnapshot(qUsers, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserProfile[];
+        setUsers(data);
+      });
+    }
+
+    return () => {
+      unsubCompanies();
+      unsubDepts();
+      unsubUsers();
+    };
+  }, [userProfile, isAdmin]);
 
   const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCode || !newName) return;
+    if (!newDeptCode || !newDeptName || !newDeptCompany) return;
 
     setLoading(true);
     try {
       await addDoc(collection(db, 'departments'), {
-        code: newCode,
-        thaiName: newName,
+        code: newDeptCode,
+        thaiName: newDeptName,
+        companyCode: newDeptCompany,
         createdAt: Date.now(),
       });
-      setNewCode('');
-      setNewName('');
+      setNewDeptCode('');
+      setNewDeptName('');
     } catch (err) {
       console.error('Error adding department:', err);
       alert('ไม่สามารถเพิ่มแผนกได้');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCompanyCode || !newCompanyName) return;
+
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'companies'), {
+        code: newCompanyCode,
+        name: newCompanyName,
+        createdAt: Date.now(),
+      });
+      setNewCompanyCode('');
+      setNewCompanyName('');
+    } catch (err) {
+      console.error('Error adding company:', err);
+      alert('ไม่สามารถเพิ่มบริษัทได้');
     } finally {
       setLoading(false);
     }
@@ -127,6 +191,74 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack }) => {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8">
+        
+        {/* Admin Only: Company Management */}
+        {isAdmin && (
+          <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Building2 size={20} className="text-indigo-600" />
+                จัดการบริษัท (Companies)
+              </h2>
+            </div>
+            
+            <form onSubmit={handleAddCompany} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <input
+                required
+                type="text"
+                placeholder="รหัสบริษัท (Code)"
+                value={newCompanyCode}
+                onChange={(e) => setNewCompanyCode(e.target.value)}
+                className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              />
+              <div className="flex gap-2">
+                <input
+                  required
+                  type="text"
+                  placeholder="ชื่อบริษัท"
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.target.value)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                />
+                <button
+                  disabled={loading}
+                  type="submit"
+                  className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  <Plus size={24} />
+                </button>
+              </div>
+            </form>
+
+            <div className="space-y-3">
+              {companies.map((comp) => (
+                <div key={comp.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group">
+                  <div>
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mr-2">
+                      {comp.code}
+                    </span>
+                    <span className="font-medium text-slate-700">{comp.name}</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('ยืนยันการลบบริษัทนี้?')) {
+                        await deleteDoc(doc(db, 'companies', comp.id));
+                      }
+                    }}
+                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+              {companies.length === 0 && (
+                <p className="text-center py-8 text-slate-400 text-sm italic">ยังไม่มีข้อมูลบริษัท</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Department Management */}
         <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -153,13 +285,24 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack }) => {
             </div>
           </div>
           
-          <form onSubmit={handleAddDepartment} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <form onSubmit={handleAddDepartment} className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <select
+              required
+              value={newDeptCompany}
+              onChange={(e) => setNewDeptCompany(e.target.value)}
+              className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
+            >
+              <option value="" disabled>เลือกบริษัท...</option>
+              {companies.map(c => (
+                <option key={c.id} value={c.code}>{c.name}</option>
+              ))}
+            </select>
             <input
               required
               type="text"
               placeholder="รหัสแผนก (Code)"
-              value={newCode}
-              onChange={(e) => setNewCode(e.target.value)}
+              value={newDeptCode}
+              onChange={(e) => setNewDeptCode(e.target.value)}
               className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
             />
             <div className="flex gap-2">
@@ -167,8 +310,8 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack }) => {
                 required
                 type="text"
                 placeholder="ชื่อแผนก (Thai Name)"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
+                value={newDeptName}
+                onChange={(e) => setNewDeptName(e.target.value)}
                 className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
               />
               <button
@@ -183,13 +326,16 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack }) => {
 
           <div className="space-y-3">
             {departments.map((dept) => (
-              <div key={dept.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group">
-                <div>
-                  <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mr-2">
-                    {dept.code}
-                  </span>
-                  <span className="font-medium text-slate-700">{dept.thaiName}</span>
-                </div>
+                <div key={dept.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group">
+                  <div>
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mr-2">
+                      {dept.companyCode}
+                    </span>
+                    <span className="text-xs font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded mr-2">
+                      {dept.code}
+                    </span>
+                    <span className="font-medium text-slate-700">{dept.thaiName}</span>
+                  </div>
                 <button
                   onClick={() => handleDelete(dept.id)}
                   className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
@@ -203,6 +349,40 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack }) => {
             )}
           </div>
         </section>
+        {/* Admin Only: User Management */}
+        {isAdmin && (
+          <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Users size={20} className="text-indigo-600" />
+                จัดการผู้ใช้งาน (Users)
+              </h2>
+            </div>
+            
+            <div className="space-y-3">
+              {users.map((u) => (
+                <div key={u.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group">
+                  <div>
+                    <span className="font-medium text-slate-700 mr-2">{u.username}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded mr-2 ${
+                      u.role === 'admin' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
+                    }`}>
+                      {u.role}
+                    </span>
+                    {u.role !== 'admin' && (
+                      <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                        {u.companyCode}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {users.length === 0 && (
+                <p className="text-center py-8 text-slate-400 text-sm italic">ยังไม่มีข้อมูลผู้ใช้งาน</p>
+              )}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

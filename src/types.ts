@@ -1,11 +1,28 @@
 export type PrinterType = 'Laser' | 'Inkjet' | 'Dot Matrix' | 'Thermal' | 'Multifunction';
 export type PrinterBrand = 'Epson' | 'Canon' | 'Brother' | 'HP' | 'Samsung' | 'Pantum' | 'Ricoh' | 'Oki' | 'Toshiba' | 'Label / Barcode Printer';
 export type ColorMode = 'Monochrome' | 'Color';
+export type UserRole = 'admin' | 'user';
+
+export interface Company {
+  id: string;
+  code: string;
+  name: string;
+  createdAt: number;
+}
+
+export interface UserProfile {
+  uid: string;
+  username: string;
+  role: UserRole;
+  companyCode: string;
+  createdAt: number;
+}
 
 export interface Department {
   id: string;
   code: string;
   thaiName: string;
+  companyCode: string; // ผูกกับบริษัท
   createdAt: number;
 }
 
@@ -17,6 +34,7 @@ export interface Printer {
   type: PrinterType;
   colorMode: ColorMode;
   departmentCode: string;
+  companyCode: string; // ผูกกับบริษัท
   createdAt: number;
   createdBy: string;
   createdByName?: string;

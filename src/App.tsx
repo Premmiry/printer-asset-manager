@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, onSnapshot, collection, query, orderBy } from './firebase';
+import { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, onSnapshot, collection, query, orderBy, doc, getDocFromServer, addDoc, setDoc } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { Printer, Department } from './types';
+import { Printer, Department, Company, UserProfile } from './types';
 import { PrinterForm } from './components/PrinterForm';
 import { PrinterList } from './components/PrinterList';
 import { ConfigPage } from './components/ConfigPage';
@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,47 +27,93 @@ export default function App() {
   // Auth states
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authCompany, setAuthCompany] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [authError, setAuthError] = useState('');
 
+  // Fetch companies for login/register
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const q = query(collection(db, 'companies'), orderBy('code', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Company[];
+      setCompanies(data);
+      if (data.length > 0 && !authCompany) {
+        setAuthCompany(data[0].code);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      
+      if (user) {
+        // Fetch user profile
+        try {
+          const profileDoc = await getDocFromServer(doc(db, 'users', user.uid));
+          if (profileDoc.exists()) {
+            setUserProfile(profileDoc.data() as UserProfile);
+          }
+        } catch (err) {
+          console.error("Error fetching user profile", err);
+        }
+      } else {
+        setUserProfile(null);
+      }
+      
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !userProfile) {
       setPrinters([]);
+      setDepartments([]);
       return;
     }
 
-    const q = query(collection(db, 'printers'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    // Load printers based on role and company
+    const qPrinters = query(collection(db, 'printers'), orderBy('createdAt', 'desc'));
+    const unsubscribePrinters = onSnapshot(qPrinters, (snapshot) => {
       const printerData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Printer[];
-      setPrinters(printerData);
+      
+      // Filter if not admin
+      if (userProfile.role === 'admin') {
+        setPrinters(printerData);
+      } else {
+        setPrinters(printerData.filter(p => p.companyCode === userProfile.companyCode));
+      }
     });
 
-    // Fetch departments for search mapping
+    // Load departments
     const qDept = query(collection(db, 'departments'), orderBy('code', 'asc'));
     const unsubscribeDept = onSnapshot(qDept, (snapshot) => {
       const deptData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Department[];
-      setDepartments(deptData);
+      
+      // Filter if not admin
+      if (userProfile.role === 'admin') {
+        setDepartments(deptData);
+      } else {
+        setDepartments(deptData.filter(d => d.companyCode === userProfile.companyCode));
+      }
     });
 
     return () => {
-      unsubscribe();
+      unsubscribePrinters();
       unsubscribeDept();
     };
-  }, [user]);
+  }, [user, userProfile]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +121,11 @@ export default function App() {
     
     if (!authUsername || !authPassword) {
       setAuthError('กรุณากรอก Username และ Password');
+      return;
+    }
+
+    if (!isLoginMode && !authCompany && authUsername.toLowerCase() !== 'prem') {
+      setAuthError('กรุณาเลือกบริษัท');
       return;
     }
 
@@ -84,11 +137,26 @@ export default function App() {
         await signInWithEmailAndPassword(auth, dummyEmail, authPassword);
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, dummyEmail, authPassword);
-        // บันทึก username ไว้ที่ displayName เพื่อนำไปใช้แสดงและอ้างอิง
+        
+        // Determine role
+        const role = authUsername.toLowerCase() === 'prem' ? 'admin' : 'user';
+
+        // Save user profile to Firestore
         await updateProfile(userCredential.user, {
           displayName: authUsername
         });
-        // บังคับ reload state เพื่อให้ displayName อัปเดตทันที
+        
+        // Save extra user data
+        const profileData: UserProfile = {
+          uid: userCredential.user.uid,
+          username: authUsername,
+          role: role,
+          companyCode: role === 'admin' ? 'ALL' : authCompany,
+          createdAt: Date.now()
+        };
+        
+        await setDoc(doc(db, 'users', userCredential.user.uid), profileData);
+        setUserProfile(profileData);
         setUser({ ...userCredential.user, displayName: authUsername } as User);
       }
     } catch (err: any) {
@@ -183,6 +251,25 @@ export default function App() {
                 placeholder="กรอกรหัสผ่าน..."
               />
             </div>
+
+            {!isLoginMode && authUsername.toLowerCase() !== 'prem' && (
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">บริษัท</label>
+                <select
+                  value={authCompany}
+                  onChange={(e) => setAuthCompany(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
+                >
+                  <option value="" disabled>เลือกบริษัท...</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.code}>{c.name} ({c.code})</option>
+                  ))}
+                </select>
+                {companies.length === 0 && (
+                  <p className="text-xs text-rose-500 mt-1">* ยังไม่มีข้อมูลบริษัทในระบบ กรุณาให้ Admin เพิ่มข้อมูลก่อน</p>
+                )}
+              </div>
+            )}
             
             {authError && (
               <p className="text-rose-500 text-sm font-medium text-center">{authError}</p>
@@ -228,7 +315,9 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-lg font-black tracking-tight leading-none">PRINTER</h1>
-              <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Asset Manager</p>
+              <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+                {userProfile?.role === 'admin' ? 'Admin Manager' : userProfile?.companyCode || 'Asset Manager'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -278,7 +367,7 @@ export default function App() {
             }`}
           >
             <Settings size={16} />
-            <span>ตั้งค่า</span>
+            <span>ตั้งค่า {userProfile?.role === 'admin' ? '(Admin)' : ''}</span>
           </button>
         </div>
 
@@ -407,7 +496,7 @@ export default function App() {
         ) : view === 'report' ? (
           <ReportPage printers={printers} departments={departments} />
         ) : (
-          <ConfigPage onBack={() => setView('list')} />
+          <ConfigPage onBack={() => setView('list')} userProfile={userProfile} />
         )}
       </main>
 
@@ -427,6 +516,7 @@ export default function App() {
         {isFormOpen && (
           <PrinterForm 
             printer={editingPrinter} 
+            userProfile={userProfile}
             onClose={() => {
               setIsFormOpen(false);
               setEditingPrinter(null);

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface PrinterFormProps {
   printer?: Printer | null;
+  userProfile: UserProfile | null;
   onClose: () => void;
 }
 
@@ -17,7 +18,7 @@ interface PrinterEntry {
   colorMode: ColorMode;
 }
 
-export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) => {
+export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, onClose }) => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [mainDepartmentCode, setMainDepartmentCode] = useState<string>(printer?.departmentCode || '');
   const [entries, setEntries] = useState<PrinterEntry[]>([
@@ -46,15 +47,20 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
         id: doc.id,
         ...doc.data()
       })) as Department[];
-      setDepartments(data);
+      
+      let filteredData = data;
+      if (userProfile?.role !== 'admin') {
+        filteredData = data.filter(d => d.companyCode === userProfile?.companyCode);
+      }
+      setDepartments(filteredData);
       
       // Set default department if not set
-      if (data.length > 0 && !printer && !mainDepartmentCode) {
-        setMainDepartmentCode(data[0].code);
+      if (filteredData.length > 0 && !printer && !mainDepartmentCode) {
+        setMainDepartmentCode(filteredData[0].code);
       }
     });
     return () => unsubscribe();
-  }, [printer]);
+  }, [printer, userProfile]);
 
   const handleAddEntry = () => {
     setEntries([...entries, {
@@ -109,6 +115,9 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
           addDoc(collection(db, 'printers'), {
             ...entry,
             departmentCode: mainDepartmentCode,
+            companyCode: userProfile?.role === 'admin' 
+              ? (departments.find(d => d.code === mainDepartmentCode)?.companyCode || 'ALL')
+              : userProfile?.companyCode,
             createdAt: Date.now(),
             createdBy: auth.currentUser?.uid,
             createdByName: currentUserName,
