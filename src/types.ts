@@ -1,3 +1,5 @@
+import { Key } from "react";
+
 export type PrinterType = 'Laser' | 'Inkjet' | 'Dot Matrix' | 'Thermal' | 'Multifunction';
 export type PrinterBrand = 'Epson' | 'Canon' | 'Brother' | 'HP' | 'Samsung' | 'Pantum' | 'Ricoh' | 'Oki' | 'Toshiba' | 'Label / Barcode Printer';
 export type ColorMode = 'Monochrome' | 'Color';

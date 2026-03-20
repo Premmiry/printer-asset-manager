@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Printer, Department } from '../types';
-import { FileText, Download, Search, Building2, Printer as PrinterIcon, ChevronRight } from 'lucide-react';
-import { motion } from 'motion/react';
+import { FileText, Download, Search, Building2, Printer as PrinterIcon, ChevronDown, X as CloseIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 
 interface ReportPageProps {
@@ -11,6 +11,17 @@ interface ReportPageProps {
 
 export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments }) => {
   const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
+  const [deptSearch, setDeptSearch] = useState('');
+
+  const filteredDepts = departments.filter(d => 
+    d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
+    d.code.toLowerCase().includes(deptSearch.toLowerCase())
+  );
+
+  const selectedDeptName = selectedDept === 'all' 
+    ? 'ดูรายงานทุกแผนก' 
+    : `${departments.find(d => d.code === selectedDept)?.thaiName} (${selectedDept})`;
 
   const reportData = useMemo(() => {
     return departments.map(dept => {
@@ -63,23 +74,88 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
         </button>
       </div>
 
-      <div className="relative">
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-          <Building2 size={20} />
-        </div>
-        <select
-          value={selectedDept}
-          onChange={(e) => setSelectedDept(e.target.value)}
-          className="w-full pl-12 pr-10 py-4 bg-white rounded-2xl border border-slate-100 shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium appearance-none cursor-pointer"
+      <div className="relative z-20">
+        <button
+          onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
+          className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-slate-100 shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-bold text-slate-700 flex items-center justify-between"
         >
-          <option value="all">ดูรายงานทุกแผนก</option>
-          {departments.map(d => (
-            <option key={d.id} value={d.code}>{d.thaiName} ({d.code})</option>
-          ))}
-        </select>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </div>
+          <div className="flex items-center gap-2">
+            <Building2 size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <span className="truncate">{selectedDeptName}</span>
+          </div>
+          <ChevronDown size={18} className={`text-slate-400 transition-transform ${isDeptDropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        <AnimatePresence>
+          {isDeptDropdownOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-10" 
+                onClick={() => setIsDeptDropdownOpen(false)} 
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl z-20 overflow-hidden"
+              >
+                <div className="p-2 border-b border-slate-50">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="พิมพ์ชื่อแผนก..."
+                      value={deptSearch}
+                      onChange={(e) => setDeptSearch(e.target.value)}
+                      className="w-full pl-9 pr-8 py-2 bg-slate-50 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    {deptSearch && (
+                      <button 
+                        onClick={() => setDeptSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <CloseIcon size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
+                  <button
+                    onClick={() => {
+                      setSelectedDept('all');
+                      setIsDeptDropdownOpen(false);
+                      setDeptSearch('');
+                    }}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                      selectedDept === 'all' ? 'bg-indigo-50 text-indigo-600 font-bold' : 'hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    ดูรายงานทุกแผนก
+                  </button>
+                  {filteredDepts.map((dept) => (
+                    <button
+                      key={dept.id}
+                      onClick={() => {
+                        setSelectedDept(dept.code);
+                        setIsDeptDropdownOpen(false);
+                        setDeptSearch('');
+                      }}
+                      className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                        selectedDept === dept.code ? 'bg-indigo-50 text-indigo-600 font-bold' : 'hover:bg-slate-50 text-slate-600'
+                      }`}
+                    >
+                      {dept.thaiName} ({dept.code})
+                    </button>
+                  ))}
+                  {filteredDepts.length === 0 && (
+                    <p className="text-center py-4 text-xs text-slate-400 italic">ไม่พบแผนกที่ค้นหา</p>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
