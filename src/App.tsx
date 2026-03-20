@@ -128,7 +128,7 @@ export default function App() {
             if (user.email?.startsWith('prem@') || user.displayName?.toLowerCase() === 'prem') {
               if (data.role !== 'admin') {
                 data.role = 'admin';
-                data.companyCode = 'ALL';
+                // Don't override companyCode to 'ALL' anymore, keep what was selected during login
                 await setDoc(doc(db, 'users', user.uid), data);
               }
             }
@@ -140,7 +140,7 @@ export default function App() {
                 uid: user.uid,
                 username: user.displayName || user.email?.split('@')[0] || 'Unknown',
                 role: isSpecialAdmin ? 'admin' : 'user',
-                companyCode: isSpecialAdmin ? 'ALL' : 'UNKNOWN',
+                companyCode: authCompany || 'UNKNOWN', // Use selected company
                 createdAt: Date.now()
              };
              setUserProfile(fallbackProfile);
@@ -174,8 +174,9 @@ export default function App() {
         ...doc.data()
       })) as Printer[];
       
-      // Filter if not admin
-      if (userProfile.role === 'admin') {
+      // Filter by company for EVERYONE (including admin)
+      // Admin might still have 'ALL' if they haven't re-logged in, handle that case gracefully
+      if (userProfile.companyCode === 'ALL') {
         setPrinters(printerData);
       } else {
         setPrinters(printerData.filter(p => p.companyCode === userProfile.companyCode));
@@ -190,8 +191,8 @@ export default function App() {
         ...doc.data()
       })) as Department[];
       
-      // Filter if not admin
-      if (userProfile.role === 'admin') {
+      // Filter by company for EVERYONE (including admin)
+      if (userProfile.companyCode === 'ALL') {
         setDepartments(deptData);
       } else {
         setDepartments(deptData.filter(d => d.companyCode === userProfile.companyCode));
@@ -213,13 +214,13 @@ export default function App() {
       return;
     }
 
-    if (!isLoginMode && !authCompany && authUsername.toLowerCase() !== 'prem') {
+    if (!isLoginMode && !authCompany) {
       setAuthError('กรุณาเลือกบริษัท');
       return;
     }
     
-    // Check if company is selected for normal users during login as well
-    if (isLoginMode && !authCompany && authUsername.toLowerCase() !== 'prem') {
+    // Check if company is selected during login
+    if (isLoginMode && !authCompany) {
       setAuthError('กรุณาเลือกบริษัทที่ต้องการเข้าสู่ระบบ');
       return;
     }
@@ -250,6 +251,16 @@ export default function App() {
                 throw new Error('COMPANY_MISMATCH');
               }
             }
+          } else {
+            // Update admin's company code to match selection for this session
+            const profileDoc = await getDocFromServer(doc(db, 'users', userCredential.user.uid));
+            if (profileDoc.exists()) {
+              const data = profileDoc.data() as UserProfile;
+              if (data.companyCode !== authCompany) {
+                data.companyCode = authCompany;
+                await setDoc(doc(db, 'users', userCredential.user.uid), data);
+              }
+            }
           }
         } catch (err: any) {
           if (err.message === 'COMPANY_MISMATCH') {
@@ -258,7 +269,16 @@ export default function App() {
           }
           // If admin login fails with company-specific email, try generic email (backward compatibility)
           if (isSpecialAdmin && err.code === 'auth/user-not-found') {
-             await signInWithEmailAndPassword(auth, `${authUsername.toLowerCase()}@pam.local`, authPassword);
+             const userCredential = await signInWithEmailAndPassword(auth, `${authUsername.toLowerCase()}@pam.local`, authPassword);
+             // Update admin's company code to match selection for this session
+             const profileDoc = await getDocFromServer(doc(db, 'users', userCredential.user.uid));
+             if (profileDoc.exists()) {
+               const data = profileDoc.data() as UserProfile;
+               if (data.companyCode !== authCompany) {
+                 data.companyCode = authCompany;
+                 await setDoc(doc(db, 'users', userCredential.user.uid), data);
+               }
+             }
           } else {
             throw err;
           }
@@ -279,7 +299,7 @@ export default function App() {
           uid: userCredential.user.uid,
           username: authUsername,
           role: role,
-          companyCode: role === 'admin' ? 'ALL' : authCompany,
+          companyCode: authCompany, // Everyone gets assigned a company now
           createdAt: Date.now()
         };
         
@@ -380,29 +400,27 @@ export default function App() {
               />
             </div>
 
-            {authUsername.toLowerCase() !== 'prem' && (
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">บริษัท</label>
-                <div className="relative">
-                  <select
-                    value={authCompany}
-                    onChange={(e) => setAuthCompany(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
-                  >
-                    <option value="" disabled>เลือกบริษัท...</option>
-                    {companies.filter(c => c.isActive !== false).map(c => (
-                      <option key={c.id} value={c.code}>{c.name} ({c.code})</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDown size={18} />
-                  </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">บริษัท</label>
+              <div className="relative">
+                <select
+                  value={authCompany}
+                  onChange={(e) => setAuthCompany(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
+                >
+                  <option value="" disabled>เลือกบริษัท...</option>
+                  {companies.filter(c => c.isActive !== false).map(c => (
+                    <option key={c.id} value={c.code}>{c.name} ({c.code})</option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <ChevronDown size={18} />
                 </div>
-                {companies.filter(c => c.isActive !== false).length === 0 && (
-                  <p className="text-xs text-rose-500 mt-1">* ยังไม่มีข้อมูลบริษัทที่เปิดใช้งานในระบบ</p>
-                )}
               </div>
-            )}
+              {companies.filter(c => c.isActive !== false).length === 0 && (
+                <p className="text-xs text-rose-500 mt-1">* ยังไม่มีข้อมูลบริษัทที่เปิดใช้งานในระบบ</p>
+              )}
+            </div>
             
             {authError && (
               <p className="text-rose-500 text-sm font-medium text-center">{authError}</p>
