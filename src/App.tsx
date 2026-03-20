@@ -79,6 +79,38 @@ export default function App() {
         console.log(`Updated ${printerPromises.length} printers to YANHEE`);
       }
 
+      // 4. Seed default Printer Types and Brands if missing
+      const defaultTypes = ['Laser', 'Inkjet', 'Dot Matrix', 'Thermal', 'Multifunction'];
+      const defaultBrands = ['Epson', 'Canon', 'Brother', 'HP', 'Samsung', 'Pantum', 'Ricoh', 'Oki', 'Toshiba', 'Label / Barcode Printer'];
+
+      // Just add them (to avoid duplicates we could check, but Run Data Starter is run once usually)
+      // To be safe, let's just add them. But we should ideally check if they exist.
+      // We will do a quick check via getDocs.
+      // But actually, we don't need to check, just try to add them if they are missing.
+      // But let's check first to avoid adding multiple times.
+      // NOTE: Using getDocs here might fail if rules don't allow it, but admin should have access.
+      const { getDocs } = await import('firebase/firestore');
+      
+      try {
+        const typesSnap = await getDocs(collection(db, 'printerTypes'));
+        if (typesSnap.empty) {
+          await Promise.all(defaultTypes.map(name => addDoc(collection(db, 'printerTypes'), { name, createdAt: Date.now() })));
+          console.log("Created default Printer Types");
+        }
+      } catch (e) {
+        console.warn("Could not check/add printerTypes, maybe permission denied or already exists", e);
+      }
+
+      try {
+        const brandsSnap = await getDocs(collection(db, 'printerBrands'));
+        if (brandsSnap.empty) {
+          await Promise.all(defaultBrands.map(name => addDoc(collection(db, 'printerBrands'), { name, createdAt: Date.now() })));
+          console.log("Created default Printer Brands");
+        }
+      } catch (e) {
+        console.warn("Could not check/add printerBrands, maybe permission denied or already exists", e);
+      }
+
       const msg = 'ตั้งค่าข้อมูลเริ่มต้น (Data Starter) สำหรับ บ.ยันฮี เรียบร้อยแล้ว!';
       console.log(msg);
       setToastMessage({ type: 'success', text: msg });

@@ -6,55 +6,22 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.createdBy;
-    }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    function isValidPrinter(data) {
-      return data.assetId is string && data.assetId.size() > 0 && data.assetId.size() < 100 &&
-             data.model is string && data.model.size() > 0 && data.model.size() < 100 &&
-             data.brand in ["Epson", "Canon", "Brother", "HP", "Samsung", "Pantum", "Ricoh", "Oki", "Toshiba", "Label / Barcode Printer"] &&
-             data.type in ["Laser", "Inkjet", "Dot Matrix", "Thermal", "Multifunction"] &&
-             data.colorMode in ["Monochrome", "Color"] &&
-             data.departmentCode is string &&
-             data.createdAt is number &&
-             data.createdBy == request.auth.uid;
-    }
-
-    function isValidDepartment(data) {
-      return data.code is string && data.code.size() > 0 &&
-             data.thaiName is string && data.thaiName.size() > 0 &&
-             data.createdAt is number;
-    }
-
     // Users Collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated(); // Allow users to manage their own profile and admin to manage all
+      allow write: if isAuthenticated();
     }
 
-    // Companies Collection
+    // Companies Collection - สำคัญตรงนี้ครับ ต้องเป็น true เพื่อให้ดึงไปแสดงหน้า login ได้
     match /companies/{companyId} {
-      allow read: if true; // Allow reading companies even without auth for registration
-      allow write: if isAuthenticated(); // For simplicity, allowing all auth users to manage config
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
 
     // Departments Collection
     match /departments/{deptId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated(); // For simplicity in this app, allowing all auth users to manage config
+      allow write: if isAuthenticated();
     }
 
     // Printers Collection
@@ -63,6 +30,18 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
+    }
+
+    // Printer Types Collection
+    match /printerTypes/{typeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Printer Brands Collection
+    match /printerBrands/{brandId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
   }
 }
