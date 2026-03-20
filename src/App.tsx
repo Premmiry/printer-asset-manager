@@ -104,7 +104,17 @@ export default function App() {
         try {
           const profileDoc = await getDocFromServer(doc(db, 'users', user.uid));
           if (profileDoc.exists()) {
-            setUserProfile(profileDoc.data() as UserProfile);
+            const data = profileDoc.data() as UserProfile;
+            
+            // Force admin role for 'prem' if not already set correctly
+            if (user.email?.startsWith('prem@') || user.displayName?.toLowerCase() === 'prem') {
+              if (data.role !== 'admin') {
+                data.role = 'admin';
+                data.companyCode = 'ALL';
+                await setDoc(doc(db, 'users', user.uid), data);
+              }
+            }
+            setUserProfile(data);
           } else {
              // For old users (like prem) who don't have a profile yet
              const isSpecialAdmin = user.email?.startsWith('prem@') || user.displayName?.toLowerCase() === 'prem';
@@ -403,7 +413,7 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {userProfile?.role === 'admin' && (
+            {(userProfile?.role === 'admin' || user?.email?.startsWith('prem@')) && (
               <button
                 onClick={setupDataStarter}
                 className="hidden sm:flex items-center gap-2 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-amber-200 transition-colors mr-2"
