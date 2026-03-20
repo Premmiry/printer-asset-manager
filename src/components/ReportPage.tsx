@@ -145,7 +145,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
                         selectedDept === dept.code ? 'bg-indigo-50 text-indigo-600 font-bold' : 'hover:bg-slate-50 text-slate-600'
                       }`}
                     >
-                      {dept.thaiName} ({dept.code})
+                      {dept.thaiName}
                     </button>
                   ))}
                   {filteredDepts.length === 0 && (
