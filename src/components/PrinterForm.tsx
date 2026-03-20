@@ -115,15 +115,32 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     setScanningIndex(index);
     try {
       const result = await Tesseract.recognize(file, 'eng');
-      // Cleanup text: keep only alphanumeric characters, dashes, and standard printable symbols
-      const text = result.data.text.replace(/[\n\r]+/g, '').trim();
-      if (text) {
-        // Show review popup instead of updating directly
-        setOcrResult(text);
+      const rawText = result.data.text;
+      
+      // 1. Remove all spaces to handle cases where OCR reads "H R - 5 6"
+      const noSpaceText = rawText.replace(/\s+/g, '');
+      
+      // 2. Use Regex to find the pattern of asset ID (e.g., HR-56/00051 or PRT-001)
+      // Looks for: At least 2 letters, a dash, and some numbers. Optionally followed by a slash and more numbers.
+      const match = noSpaceText.match(/[A-Z]{2,}-\d+(?:\/\d+)?/i);
+      
+      let finalId = '';
+      if (match) {
+        finalId = match[0].toUpperCase();
+      } else {
+        // Fallback: Just strip out completely invalid characters
+        finalId = rawText.replace(/[^a-zA-Z0-9-/]/g, '').toUpperCase();
+        if (finalId.length > 20) {
+          finalId = finalId.substring(0, 20); // Keep it short if it's garbage
+        }
+      }
+
+      if (finalId) {
+        setOcrResult(finalId);
         setActiveOcrIndex(index);
         setShowOcrReview(true);
       } else {
-        alert('ไม่พบตัวอักษรในภาพ ลองถ่ายให้ชัดเจนขึ้นครับ');
+        alert('ไม่พบตัวอักษรในภาพ พยายามถ่ายให้เห็นเฉพาะป้ายรหัสให้ชัดเจนที่สุดครับ');
       }
     } catch (err) {
       console.error('OCR Error:', err);
