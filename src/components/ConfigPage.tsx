@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Department, Company, UserProfile } from '../types';
+import { Department, Company, UserProfile, PrinterTypeConfig, PrinterBrandConfig } from '../types';
 import { db, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from '../firebase';
-import { Plus, Trash2, Settings, ChevronLeft, Building2, Upload, FileSpreadsheet, Loader2, Users, Check, X } from 'lucide-react';
+import { Plus, Trash2, Settings, ChevronLeft, Building2, Upload, FileSpreadsheet, Loader2, Users, Check, X, Printer, Tag } from 'lucide-react';
 import { motion } from 'motion/react';
 import * as XLSX from 'xlsx';
 
@@ -14,6 +14,8 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
   const [departments, setDepartments] = useState<Department[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [printerTypes, setPrinterTypes] = useState<PrinterTypeConfig[]>([]);
+  const [printerBrands, setPrinterBrands] = useState<PrinterBrandConfig[]>([]);
   
   // Department form
   const [newDeptCode, setNewDeptCode] = useState('');
@@ -23,6 +25,10 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
   // Company form
   const [newCompanyCode, setNewCompanyCode] = useState('');
   const [newCompanyName, setNewCompanyName] = useState('');
+
+  // Printer Type & Brand form
+  const [newPrinterType, setNewPrinterType] = useState('');
+  const [newPrinterBrand, setNewPrinterBrand] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -69,10 +75,24 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
       });
     }
 
+    // Load Printer Types
+    const qTypes = query(collection(db, 'printerTypes'), orderBy('name', 'asc'));
+    const unsubTypes = onSnapshot(qTypes, (snapshot) => {
+      setPrinterTypes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PrinterTypeConfig[]);
+    });
+
+    // Load Printer Brands
+    const qBrands = query(collection(db, 'printerBrands'), orderBy('name', 'asc'));
+    const unsubBrands = onSnapshot(qBrands, (snapshot) => {
+      setPrinterBrands(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PrinterBrandConfig[]);
+    });
+
     return () => {
       unsubCompanies();
       unsubDepts();
       unsubUsers();
+      unsubTypes();
+      unsubBrands();
     };
   }, [userProfile, isAdmin]);
 
@@ -130,6 +150,40 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
     } catch (err) {
       console.error('Error adding company:', err);
       alert('ไม่สามารถเพิ่มบริษัทได้');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPrinterType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPrinterType.trim()) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'printerTypes'), {
+        name: newPrinterType.trim(),
+        createdAt: Date.now(),
+      });
+      setNewPrinterType('');
+    } catch (err) {
+      console.error('Error adding printer type:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPrinterBrand = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPrinterBrand.trim()) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'printerBrands'), {
+        name: newPrinterBrand.trim(),
+        createdAt: Date.now(),
+      });
+      setNewPrinterBrand('');
+    } catch (err) {
+      console.error('Error adding printer brand:', err);
     } finally {
       setLoading(false);
     }
@@ -465,6 +519,139 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
             )}
           </div>
         </section>
+        {/* Admin Only: Printer Types and Brands Management */}
+        {isAdmin && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            {/* Printer Types */}
+            <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Printer size={20} className="text-indigo-600" />
+                  จัดการประเภท (Types)
+                </h2>
+                {printerTypes.length === 0 && (
+                  <button
+                    onClick={async () => {
+                      const defaults = ['Laser', 'Inkjet', 'Dot Matrix', 'Thermal', 'Multifunction'];
+                      setLoading(true);
+                      try {
+                        await Promise.all(defaults.map(name => addDoc(collection(db, 'printerTypes'), { name, createdAt: Date.now() })));
+                      } finally { setLoading(false); }
+                    }}
+                    className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors font-medium"
+                  >
+                    โหลดข้อมูลเริ่มต้น
+                  </button>
+                )}
+              </div>
+              
+              <form onSubmit={handleAddPrinterType} className="flex gap-2 mb-6">
+                <input
+                  required
+                  type="text"
+                  placeholder="เพิ่มประเภทใหม่"
+                  value={newPrinterType}
+                  onChange={(e) => setNewPrinterType(e.target.value)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                />
+                <button
+                  disabled={loading}
+                  type="submit"
+                  className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  <Plus size={24} />
+                </button>
+              </form>
+
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                {printerTypes.map((type) => (
+                  <div key={type.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group">
+                    <span className="font-medium text-slate-700 ml-2">{type.name}</span>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm(`ยืนยันการลบประเภท "${type.name}"?`)) {
+                          await deleteDoc(doc(db, 'printerTypes', type.id));
+                        }
+                      }}
+                      className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      title="ลบประเภท"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                {printerTypes.length === 0 && (
+                  <p className="text-center py-4 text-slate-400 text-sm italic">ยังไม่มีข้อมูลประเภท</p>
+                )}
+              </div>
+            </section>
+
+            {/* Printer Brands */}
+            <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Tag size={20} className="text-indigo-600" />
+                  จัดการยี่ห้อ (Brands)
+                </h2>
+                {printerBrands.length === 0 && (
+                  <button
+                    onClick={async () => {
+                      const defaults = ['Epson', 'Canon', 'Brother', 'HP', 'Samsung', 'Pantum', 'Ricoh', 'Oki', 'Toshiba', 'Label / Barcode Printer'];
+                      setLoading(true);
+                      try {
+                        await Promise.all(defaults.map(name => addDoc(collection(db, 'printerBrands'), { name, createdAt: Date.now() })));
+                      } finally { setLoading(false); }
+                    }}
+                    className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors font-medium"
+                  >
+                    โหลดข้อมูลเริ่มต้น
+                  </button>
+                )}
+              </div>
+              
+              <form onSubmit={handleAddPrinterBrand} className="flex gap-2 mb-6">
+                <input
+                  required
+                  type="text"
+                  placeholder="เพิ่มยี่ห้อใหม่"
+                  value={newPrinterBrand}
+                  onChange={(e) => setNewPrinterBrand(e.target.value)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                />
+                <button
+                  disabled={loading}
+                  type="submit"
+                  className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  <Plus size={24} />
+                </button>
+              </form>
+
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                {printerBrands.map((brand) => (
+                  <div key={brand.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group">
+                    <span className="font-medium text-slate-700 ml-2">{brand.name}</span>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm(`ยืนยันการลบยี่ห้อ "${brand.name}"?`)) {
+                          await deleteDoc(doc(db, 'printerBrands', brand.id));
+                        }
+                      }}
+                      className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      title="ลบยี่ห้อ"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                {printerBrands.length === 0 && (
+                  <p className="text-center py-4 text-slate-400 text-sm italic">ยังไม่มีข้อมูลยี่ห้อ</p>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+
         {/* Admin Only: User Management */}
         {isAdmin && (
           <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">

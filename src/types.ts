@@ -1,7 +1,20 @@
 import { Key } from "react";
 
-export type PrinterType = 'Laser' | 'Inkjet' | 'Dot Matrix' | 'Thermal' | 'Multifunction';
-export type PrinterBrand = 'Epson' | 'Canon' | 'Brother' | 'HP' | 'Samsung' | 'Pantum' | 'Ricoh' | 'Oki' | 'Toshiba' | 'Label / Barcode Printer';
+export type PrinterType = string;
+export type PrinterBrand = string;
+
+export interface PrinterTypeConfig {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
+export interface PrinterBrandConfig {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
 export type ColorMode = 'Monochrome' | 'Color';
 export type UserRole = 'admin' | 'user';
 
@@ -38,25 +51,11 @@ export interface Printer {
   type: PrinterType;
   colorMode: ColorMode;
   departmentCode: string;
-  companyCode: string; // ผูกกับบริษัท
+  companyCode: string;
   createdAt: number;
-  createdBy: string;
+  createdBy?: string;
   createdByName?: string;
   updatedAt?: number;
   updatedBy?: string;
   updatedByName?: string;
 }
-
-export const PRINTER_TYPES: PrinterType[] = ['Laser', 'Inkjet', 'Dot Matrix', 'Thermal', 'Multifunction'];
-export const PRINTER_BRANDS: PrinterBrand[] = [
-  'Epson', 
-  'Canon', 
-  'Brother', 
-  'HP', 
-  'Samsung', 
-  'Pantum', 
-  'Ricoh', 
-  'Oki', 
-  'Toshiba', 
-  'Label / Barcode Printer'
-];

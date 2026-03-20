@@ -76,7 +76,7 @@ export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments,
                   {printer.model}
                 </h3>
                 
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 mb-2">
                   <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                     <Building2 size={12} className="text-slate-400" />
                     <span className="truncate max-w-[150px]">{departments.find(d => d.code === printer.departmentCode)?.thaiName || printer.departmentCode}</span>
@@ -89,6 +89,19 @@ export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments,
                     <Layers size={12} className="text-slate-400" />
                     <span>{printer.type}</span>
                   </div>
+                </div>
+
+                {/* Show created/updated info */}
+                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                  {printer.createdByName && (
+                    <span>บันทึกโดย: {printer.createdByName}</span>
+                  )}
+                  {printer.updatedByName && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span>แก้ไขล่าสุด: {printer.updatedByName}</span>
+                    </>
+                  )}
                 </div>
               </div>
 

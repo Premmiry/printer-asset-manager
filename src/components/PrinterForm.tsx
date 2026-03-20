@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, PrinterBrand, PrinterType, ColorMode, PRINTER_BRANDS, PRINTER_TYPES, Department, UserProfile } from '../types';
+import { Printer, PrinterBrand, PrinterType, ColorMode, Department, UserProfile, PrinterTypeConfig, PrinterBrandConfig } from '../types';
 import { db, auth, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, where } from '../firebase';
 import { X, Save, Printer as PrinterIcon, Plus, Trash2, Search, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -25,8 +25,8 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     {
       assetId: printer?.assetId || '',
       model: printer?.model || '',
-      brand: printer?.brand || 'Epson',
-      type: printer?.type || 'Laser',
+      brand: printer?.brand || '',
+      type: printer?.type || '',
       colorMode: printer?.colorMode || 'Monochrome',
     }
   ]);
@@ -35,6 +35,8 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
   const [existingPrinters, setExistingPrinters] = useState<Printer[]>([]);
+  const [printerTypes, setPrinterTypes] = useState<PrinterTypeConfig[]>([]);
+  const [printerBrands, setPrinterBrands] = useState<PrinterBrandConfig[]>([]);
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -78,6 +80,23 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     });
     return () => unsub();
   }, [mainDepartmentCode]);
+
+  useEffect(() => {
+    const qTypes = query(collection(db, 'printerTypes'), orderBy('name', 'asc'));
+    const unsubTypes = onSnapshot(qTypes, (snapshot) => {
+      setPrinterTypes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PrinterTypeConfig[]);
+    });
+
+    const qBrands = query(collection(db, 'printerBrands'), orderBy('name', 'asc'));
+    const unsubBrands = onSnapshot(qBrands, (snapshot) => {
+      setPrinterBrands(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PrinterBrandConfig[]);
+    });
+
+    return () => {
+      unsubTypes();
+      unsubBrands();
+    };
+  }, []);
 
   const handleAddEntry = () => {
     setEntries([...entries, {
@@ -326,11 +345,12 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ยี่ห้อ (Brand)</label>
                       <select
                         value={entry.brand}
-                        onChange={(e) => updateEntry(index, 'brand', e.target.value as any)}
+                        onChange={(e) => updateEntry(index, 'brand', e.target.value)}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white appearance-none"
                       >
-                        {PRINTER_BRANDS.map((b) => (
-                          <option key={b} value={b}>{b}</option>
+                        <option value="" disabled>เลือกยี่ห้อ...</option>
+                        {printerBrands.map((b) => (
+                          <option key={b.id} value={b.name}>{b.name}</option>
                         ))}
                       </select>
                     </div>
@@ -338,11 +358,12 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ประเภท (Type)</label>
                       <select
                         value={entry.type}
-                        onChange={(e) => updateEntry(index, 'type', e.target.value as any)}
+                        onChange={(e) => updateEntry(index, 'type', e.target.value)}
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white appearance-none"
                       >
-                        {PRINTER_TYPES.map((t) => (
-                          <option key={t} value={t}>{t}</option>
+                        <option value="" disabled>เลือกประเภท...</option>
+                        {printerTypes.map((t) => (
+                          <option key={t.id} value={t.name}>{t.name}</option>
                         ))}
                       </select>
                     </div>
@@ -388,6 +409,25 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
             {error && (
               <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">
                 {error}
+              </div>
+            )}
+
+            {printer && (
+              <div className="flex flex-col items-center justify-center gap-1 mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="text-[11px] text-slate-500 font-medium flex items-center gap-2">
+                  <span>บันทึกโดย: <span className="text-slate-700 font-bold">{printer.createdByName || 'ไม่ระบุ'}</span></span>
+                  {printer.createdAt && (
+                    <span className="text-slate-400">({new Date(printer.createdAt).toLocaleString('th-TH')})</span>
+                  )}
+                </div>
+                {printer.updatedByName && (
+                  <div className="text-[11px] text-slate-500 font-medium flex items-center gap-2">
+                    <span>แก้ไขล่าสุดโดย: <span className="text-slate-700 font-bold">{printer.updatedByName}</span></span>
+                    {printer.updatedAt && (
+                      <span className="text-slate-400">({new Date(printer.updatedAt).toLocaleString('th-TH')})</span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
