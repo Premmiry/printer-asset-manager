@@ -691,7 +691,7 @@ export default function App() {
 
       {/* Footer Info */}
       <footer className="max-w-2xl mx-auto px-6 py-12 text-center text-slate-400">
-        <p className="text-xs font-medium">© 2026 Printer Asset Management System</p>
+        <p className="text-xs font-medium">© 2026 Printer Asset Management System by DevPrem</p>
       </footer>
     </div>
   );

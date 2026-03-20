@@ -10,7 +10,7 @@ interface ReportPageProps {
 }
 
 export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDept, setSelectedDept] = useState<string>('all');
 
   const reportData = useMemo(() => {
     return departments.map(dept => {
@@ -23,11 +23,9 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
         monoCount: deptPrinters.filter(p => p.colorMode === 'Monochrome').length
       };
     }).filter(d => 
-      d.thaiName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.printers.some(p => p.assetId.toLowerCase().includes(searchQuery.toLowerCase()) || p.model.toLowerCase().includes(searchQuery.toLowerCase()))
+      selectedDept === 'all' || d.code === selectedDept
     ).sort((a, b) => b.total - a.total);
-  }, [printers, departments, searchQuery]);
+  }, [printers, departments, selectedDept]);
 
   const exportToExcel = () => {
     const data = printers.map(p => {
@@ -66,14 +64,22 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
       </div>
 
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <input
-          type="text"
-          placeholder="ค้นหาแผนก หรือรหัสทรัพย์สิน..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-slate-100 shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium"
-        />
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          <Building2 size={20} />
+        </div>
+        <select
+          value={selectedDept}
+          onChange={(e) => setSelectedDept(e.target.value)}
+          className="w-full pl-12 pr-10 py-4 bg-white rounded-2xl border border-slate-100 shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium appearance-none cursor-pointer"
+        >
+          <option value="all">ดูรายงานทุกแผนก</option>
+          {departments.map(d => (
+            <option key={d.id} value={d.code}>{d.thaiName} ({d.code})</option>
+          ))}
+        </select>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -133,17 +139,17 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
                     <PrinterIcon size={12} />
                     รายการเครื่องพิมพ์
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                     {dept.printers.map(p => (
                       <div key={p.id} className="flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 transition-colors rounded-xl border border-slate-100 shadow-sm group">
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${p.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-500 to-indigo-500' : 'bg-slate-400'}`} />
-                          <div>
-                            <div className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{p.assetId}</div>
-                            <div className="text-[11px] text-slate-500 font-medium">{p.brand} <span className="text-slate-400">{p.model}</span></div>
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-500 to-indigo-500' : 'bg-slate-400'}`} />
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors truncate">{p.assetId}</div>
+                            <div className="text-[11px] text-slate-500 font-medium truncate">{p.brand} <span className="text-slate-400">{p.model}</span></div>
                           </div>
                         </div>
-                        <div className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-500 font-medium">
+                        <div className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-500 font-medium whitespace-nowrap ml-2">
                           {p.type}
                         </div>
                       </div>

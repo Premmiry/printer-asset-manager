@@ -64,7 +64,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
     if (isAdmin) {
       const qUsers = query(collection(db, 'users'), orderBy('username', 'asc'));
       unsubUsers = onSnapshot(qUsers, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserProfile[];
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as UserProfile[];
         setUsers(data);
       });
     }
@@ -419,7 +419,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
             </div>
           </form>
 
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-3 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
             {filteredDepartments.map((dept) => (
                 <div key={dept.id} className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl group transition-colors border border-slate-100/50">
                   <div className="flex items-center gap-3">

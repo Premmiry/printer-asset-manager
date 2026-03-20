@@ -12,6 +12,7 @@ export interface Company {
 }
 
 export interface UserProfile {
+  [x: string]: Key;
   uid: string;
   username: string;
   role: UserRole;
