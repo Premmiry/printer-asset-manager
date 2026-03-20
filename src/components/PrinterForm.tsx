@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, PrinterBrand, PrinterType, ColorMode, PRINTER_BRANDS, PRINTER_TYPES, Department } from '../types';
+import { Printer, PrinterBrand, PrinterType, ColorMode, PRINTER_BRANDS, PRINTER_TYPES, Department, UserProfile } from '../types';
 import { db, auth, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy } from '../firebase';
 import { X, Save, Printer as PrinterIcon, Plus, Trash2, Search, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -353,7 +353,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
               <button
                 disabled={loading}
                 type="submit"
-                className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-2 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -323,7 +323,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full">
               <UserIcon size={14} className="text-slate-500" />
-              <span className="text-xs font-bold text-slate-700 max-w-[80px] truncate">
+              <span className="text-xs font-bold text-slate-700 max-w-20 truncate">
                 {user.displayName || user.email?.split('@')[0] || 'User'}
               </span>
             </div>
