@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Printer, PrinterBrand, PrinterType, ColorMode, PRINTER_BRANDS, PRINTER_TYPES, Department, UserProfile } from '../types';
 import { db, auth, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, where } from '../firebase';
-import { X, Save, Printer as PrinterIcon, Plus, Trash2, Search, ChevronDown, Camera, Loader2 } from 'lucide-react';
+import { X, Save, Printer as PrinterIcon, Plus, Trash2, Search, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import Tesseract from 'tesseract.js';
 
 interface PrinterFormProps {
   printer?: Printer | null;
@@ -36,12 +35,6 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
   const [existingPrinters, setExistingPrinters] = useState<Printer[]>([]);
-  const [scanningIndex, setScanningIndex] = useState<number | null>(null);
-  
-  // OCR Review States
-  const [ocrResult, setOcrResult] = useState<string>('');
-  const [showOcrReview, setShowOcrReview] = useState(false);
-  const [activeOcrIndex, setActiveOcrIndex] = useState<number | null>(null);
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -106,106 +99,6 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     const newEntries = [...entries];
     newEntries[index] = { ...newEntries[index], [field]: value };
     setEntries(newEntries);
-  };
-
-  const handleImageScan = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setScanningIndex(index);
-    try {
-      // Create an image element from the file
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-
-      // Try BarcodeDetector first (Native browser API, much faster and accurate for codes)
-      // Note: Not supported in all browsers yet, so we wrap it in a try-catch and check if it exists
-      if ('BarcodeDetector' in window) {
-        try {
-          // @ts-ignore - BarcodeDetector is not fully typed in standard TS yet
-          const barcodeDetector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'data_matrix'] });
-          const barcodes = await barcodeDetector.detect(img);
-          
-          if (barcodes.length > 0) {
-            const text = barcodes[0].rawValue;
-            setOcrResult(text);
-            setActiveOcrIndex(index);
-            setShowOcrReview(true);
-            setScanningIndex(null);
-            e.target.value = '';
-            URL.revokeObjectURL(img.src);
-            return; // Success with BarcodeDetector
-          }
-        } catch (barcodeErr) {
-          console.warn('BarcodeDetector failed or not supported for this image, falling back to OCR', barcodeErr);
-        }
-      }
-
-      // Fallback to Tesseract OCR if BarcodeDetector fails or doesn't find anything
-      const result = await Tesseract.recognize(file, 'eng');
-      const rawText = result.data.text;
-      
-      // 1. Remove all spaces to handle cases where OCR reads "H R - 5 6"
-      const noSpaceText = rawText.replace(/\s+/g, '');
-      
-      // 2. Extract potential ID using multiple Regex patterns
-      let finalId = '';
-      
-      // Pattern 1: Exact match for HR.59/00039 or HR-56/00051 (Allows dot or dash)
-      const exactMatch = noSpaceText.match(/[A-Z]{2,}[.-]\d{2,}\/\d{4,}/i);
-      
-      // Pattern 2: More generic match
-      const genericMatch = noSpaceText.match(/[A-Z]{2,}[.-]\d+(?:\/\d+)?/i);
-
-      if (exactMatch) {
-        finalId = exactMatch[0].toUpperCase();
-      } else if (genericMatch) {
-        finalId = genericMatch[0].toUpperCase();
-      } else {
-        const fallbackMatch = noSpaceText.match(/[A-Z0-9]{2,}[.-/][A-Z0-9]+/i);
-        if (fallbackMatch) {
-            finalId = fallbackMatch[0].toUpperCase();
-        }
-      }
-
-      if (finalId) {
-        finalId = finalId.replace(/[^A-Z0-9]$/, '');
-        setOcrResult(finalId);
-        setActiveOcrIndex(index);
-        setShowOcrReview(true);
-      } else {
-        // If regex fails completely, show raw text but cleaned up a bit so user can edit it manually
-        const cleanedRaw = rawText.replace(/[^a-zA-Z0-9./-]/g, '').toUpperCase();
-        if (cleanedRaw.length > 3) {
-          setOcrResult(cleanedRaw.substring(0, 20)); // Limit length
-          setActiveOcrIndex(index);
-          setShowOcrReview(true);
-        } else {
-          alert('ไม่พบรหัสในภาพ กรุณาพิมพ์รหัสด้วยตัวเองหรือถ่ายภาพใหม่อีกครั้งครับ');
-        }
-      }
-      
-      URL.revokeObjectURL(img.src);
-    } catch (err) {
-      console.error('Scan Error:', err);
-      alert('เกิดข้อผิดพลาดในการแสกนภาพ');
-    } finally {
-      setScanningIndex(null);
-      e.target.value = ''; // Reset input
-    }
-  };
-
-  const confirmOcrResult = () => {
-    if (activeOcrIndex !== null) {
-      updateEntry(activeOcrIndex, 'assetId', ocrResult);
-      setShowOcrReview(false);
-      setActiveOcrIndex(null);
-      setOcrResult('');
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -409,33 +302,14 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">รหัสทรัพย์สิน (Asset ID)</label>
-                      <div className="relative">
-                        <input
-                          required
-                          type="text"
-                          value={entry.assetId}
-                          onChange={(e) => updateEntry(index, 'assetId', e.target.value)}
-                          className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-                          placeholder="PRT-001"
-                        />
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                          {scanningIndex === index ? (
-                            <Loader2 size={18} className="text-indigo-500 animate-spin" />
-                          ) : (
-                            <label className="cursor-pointer p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors block" title="ถ่ายภาพหรือเลือกรูปภาพเพื่อแสกนรหัส">
-                              <Camera size={18} />
-                              {/* Using capture="environment" will open camera on mobile, but fallback to file picker on PC */}
-                              <input 
-                                type="file" 
-                                accept="image/*" 
-                                capture="environment" 
-                                className="hidden" 
-                                onChange={(e) => handleImageScan(e, index)}
-                              />
-                            </label>
-                          )}
-                        </div>
-                      </div>
+                      <input
+                        required
+                        type="text"
+                        value={entry.assetId}
+                        onChange={(e) => updateEntry(index, 'assetId', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                        placeholder="PRT-001"
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">รุ่น (Model)</label>
@@ -543,58 +417,6 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
           </form>
         </div>
       </div>
-
-      {/* OCR Review Popup */}
-      <AnimatePresence>
-        {showOcrReview && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full"
-            >
-              <div className="flex items-center gap-3 mb-4 text-indigo-600">
-                <Camera size={24} />
-                <h3 className="text-lg font-bold text-slate-900">ตรวจสอบรหัสที่แสกนได้</h3>
-              </div>
-              <p className="text-sm text-slate-500 mb-4">
-                กรุณาตรวจสอบและแก้ไขรหัสให้ถูกต้องก่อนกดยืนยัน
-              </p>
-              <input
-                type="text"
-                autoFocus
-                value={ocrResult}
-                onChange={(e) => setOcrResult(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all text-lg font-bold text-center tracking-widest text-slate-800 mb-6"
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowOcrReview(false);
-                    setOcrResult('');
-                    setActiveOcrIndex(null);
-                  }}
-                  className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  onClick={confirmOcrResult}
-                  className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
-                >
-                  ยืนยัน
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };
