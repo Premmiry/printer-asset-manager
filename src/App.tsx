@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, googleProvider, signInWithPopup, signOut, onSnapshot, collection, query, orderBy } from './firebase';
+import { auth, db, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onSnapshot, collection, query, orderBy } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Printer, Department } from './types';
 import { PrinterForm } from './components/PrinterForm';
@@ -23,6 +23,11 @@ export default function App() {
   const [view, setView] = useState<'list' | 'config' | 'report'>('list');
 
   useEffect(() => {
+    // Check for redirect result when component mounts
+    getRedirectResult(auth).catch((error) => {
+      console.error('Redirect login error:', error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
@@ -63,7 +68,16 @@ export default function App() {
 
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      // Check if user is on a mobile device
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // Use redirect for mobile devices to avoid popup blockers
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        // Use popup for desktop
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (err) {
       console.error('Login error:', err);
     }
