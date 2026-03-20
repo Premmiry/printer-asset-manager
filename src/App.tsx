@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onSnapshot, collection, query, orderBy } from './firebase';
+import { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, onSnapshot, collection, query, orderBy } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Printer, Department } from './types';
 import { PrinterForm } from './components/PrinterForm';
@@ -21,13 +21,14 @@ export default function App() {
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
   const [view, setView] = useState<'list' | 'config' | 'report'>('list');
+  
+  // Auth states
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [authError, setAuthError] = useState('');
 
   useEffect(() => {
-    // Check for redirect result when component mounts
-    getRedirectResult(auth).catch((error) => {
-      console.error('Redirect login error:', error);
-    });
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
@@ -66,20 +67,41 @@ export default function App() {
     };
   }, [user]);
 
-  const handleLogin = async () => {
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    if (!authUsername || !authPassword) {
+      setAuthError('กรุณากรอก Username และ Password');
+      return;
+    }
+
+    // สร้าง dummy email จาก username
+    const dummyEmail = `${authUsername.toLowerCase()}@pam.local`;
+
     try {
-      // Check if user is on a mobile device
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      
-      if (isMobile) {
-        // Use redirect for mobile devices to avoid popup blockers
-        await signInWithRedirect(auth, googleProvider);
+      if (isLoginMode) {
+        await signInWithEmailAndPassword(auth, dummyEmail, authPassword);
       } else {
-        // Use popup for desktop
-        await signInWithPopup(auth, googleProvider);
+        const userCredential = await createUserWithEmailAndPassword(auth, dummyEmail, authPassword);
+        // บันทึก username ไว้ที่ displayName เพื่อนำไปใช้แสดงและอ้างอิง
+        await updateProfile(userCredential.user, {
+          displayName: authUsername
+        });
+        // บังคับ reload state เพื่อให้ displayName อัปเดตทันที
+        setUser({ ...userCredential.user, displayName: authUsername } as User);
       }
-    } catch (err) {
-      console.error('Login error:', err);
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setAuthError('Username หรือ Password ไม่ถูกต้อง');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setAuthError('Username นี้ถูกใช้งานแล้ว');
+      } else if (err.code === 'auth/weak-password') {
+        setAuthError('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+      } else {
+        setAuthError('เกิดข้อผิดพลาด: ' + err.message);
+      }
     }
   };
 
@@ -130,23 +152,62 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white w-full max-w-md p-8 rounded-3xl shadow-xl shadow-indigo-100 text-center"
+          className="bg-white w-full max-w-md p-8 rounded-3xl shadow-xl shadow-indigo-100"
         >
           <div className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-200">
             <PrinterIcon size={40} className="text-white" />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-2">Printer Asset</h1>
-          <p className="text-slate-500 mb-8 leading-relaxed">
-            ระบบจัดการข้อมูลเครื่องพิมพ์สำหรับองค์กร<br />
-            เข้าสู่ระบบเพื่อเริ่มใช้งาน
+          <h1 className="text-3xl font-black text-slate-900 mb-2 text-center">Printer Asset</h1>
+          <p className="text-slate-500 mb-8 leading-relaxed text-center">
+            ระบบจัดการข้อมูลเครื่องพิมพ์สำหรับองค์กร
           </p>
-          <button
-            onClick={handleLogin}
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-3"
-          >
-            <LogIn size={20} />
-            <span>เข้าสู่ระบบด้วย Google</span>
-          </button>
+
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Username</label>
+              <input
+                type="text"
+                value={authUsername}
+                onChange={(e) => setAuthUsername(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="กรอกชื่อผู้ใช้งาน..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="กรอกรหัสผ่าน..."
+              />
+            </div>
+            
+            {authError && (
+              <p className="text-rose-500 text-sm font-medium text-center">{authError}</p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 mt-4"
+            >
+              <LogIn size={20} />
+              <span>{isLoginMode ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}</span>
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button 
+              onClick={() => {
+                setIsLoginMode(!isLoginMode);
+                setAuthError('');
+              }}
+              className="text-indigo-600 text-sm font-bold hover:underline"
+            >
+              {isLoginMode ? 'ยังไม่มีบัญชี? สมัครสมาชิก' : 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ'}
+            </button>
+          </div>
         </motion.div>
       </div>
     );
@@ -174,7 +235,7 @@ export default function App() {
             <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full">
               <UserIcon size={14} className="text-slate-500" />
               <span className="text-xs font-bold text-slate-700 max-w-[80px] truncate">
-                {user.displayName?.split(' ')[0]}
+                {user.displayName || user.email?.split('@')[0] || 'User'}
               </span>
             </div>
             <button

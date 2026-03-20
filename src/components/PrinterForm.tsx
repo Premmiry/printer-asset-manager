@@ -88,11 +88,15 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
     setError(null);
 
     try {
+      const currentUserName = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Unknown';
+
       if (printer) {
         // Edit mode (only 1 entry)
         await updateDoc(doc(db, 'printers', printer.id), {
           ...entries[0],
           updatedAt: Date.now(),
+          updatedBy: auth.currentUser?.uid,
+          updatedByName: currentUserName,
         });
       } else {
         // Multi-add mode
@@ -101,6 +105,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
             ...entry,
             createdAt: Date.now(),
             createdBy: auth.currentUser?.uid,
+            createdByName: currentUserName,
           })
         );
         await Promise.all(promises);

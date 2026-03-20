@@ -19,6 +19,10 @@ export interface Printer {
   departmentCode: string;
   createdAt: number;
   createdBy: string;
+  createdByName?: string;
+  updatedAt?: number;
+  updatedBy?: string;
+  updatedByName?: string;
 }
 
 export const PRINTER_TYPES: PrinterType[] = ['Laser', 'Inkjet', 'Dot Matrix', 'Thermal', 'Multifunction'];
