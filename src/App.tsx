@@ -236,8 +236,26 @@ export default function App() {
     try {
       if (isLoginMode) {
         try {
-          await signInWithEmailAndPassword(auth, dummyEmail, authPassword);
+          // Login
+          const userCredential = await signInWithEmailAndPassword(auth, dummyEmail, authPassword);
+          
+          // Verify company match for non-admin users
+          if (!isSpecialAdmin) {
+            const profileDoc = await getDocFromServer(doc(db, 'users', userCredential.user.uid));
+            if (profileDoc.exists()) {
+              const data = profileDoc.data() as UserProfile;
+              if (data.companyCode !== authCompany) {
+                // If company doesn't match, sign out and throw error
+                await signOut(auth);
+                throw new Error('COMPANY_MISMATCH');
+              }
+            }
+          }
         } catch (err: any) {
+          if (err.message === 'COMPANY_MISMATCH') {
+            setAuthError('ไม่พบชื่อผู้ใช้งานนี้ในบริษัทที่เลือก กรุณาตรวจสอบบริษัทอีกครั้ง');
+            return;
+          }
           // If admin login fails with company-specific email, try generic email (backward compatibility)
           if (isSpecialAdmin && err.code === 'auth/user-not-found') {
              await signInWithEmailAndPassword(auth, `${authUsername.toLowerCase()}@pam.local`, authPassword);

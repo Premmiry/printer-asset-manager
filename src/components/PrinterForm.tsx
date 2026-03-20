@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Printer, PrinterBrand, PrinterType, ColorMode, PRINTER_BRANDS, PRINTER_TYPES, Department, UserProfile } from '../types';
-import { db, auth, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy } from '../firebase';
-import { X, Save, Printer as PrinterIcon, Plus, Trash2, Search, ChevronDown } from 'lucide-react';
+import { db, auth, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, where } from '../firebase';
+import { X, Save, Printer as PrinterIcon, Plus, Trash2, Search, ChevronDown, Camera, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import Tesseract from 'tesseract.js';
 
 interface PrinterFormProps {
   printer?: Printer | null;
@@ -34,6 +35,8 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
   const [error, setError] = useState<string | null>(null);
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
+  const [existingPrinters, setExistingPrinters] = useState<Printer[]>([]);
+  const [scanningIndex, setScanningIndex] = useState<number | null>(null);
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -62,6 +65,22 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     return () => unsubscribe();
   }, [printer, userProfile]);
 
+  useEffect(() => {
+    if (!mainDepartmentCode) {
+      setExistingPrinters([]);
+      return;
+    }
+    const q = query(
+      collection(db, 'printers'), 
+      where('departmentCode', '==', mainDepartmentCode)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Printer[];
+      setExistingPrinters(data);
+    });
+    return () => unsub();
+  }, [mainDepartmentCode]);
+
   const handleAddEntry = () => {
     setEntries([...entries, {
       assetId: '',
@@ -84,6 +103,29 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     setEntries(newEntries);
   };
 
+  const handleImageScan = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setScanningIndex(index);
+    try {
+      const result = await Tesseract.recognize(file, 'eng');
+      // Cleanup text: keep only alphanumeric characters, dashes, and standard printable symbols
+      const text = result.data.text.replace(/[\n\r]+/g, '').trim();
+      if (text) {
+        updateEntry(index, 'assetId', text);
+      } else {
+        alert('ไม่พบตัวอักษรในภาพ ลองถ่ายให้ชัดเจนขึ้นครับ');
+      }
+    } catch (err) {
+      console.error('OCR Error:', err);
+      alert('เกิดข้อผิดพลาดในการแสกนภาพ');
+    } finally {
+      setScanningIndex(null);
+      e.target.value = ''; // Reset input
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
@@ -101,7 +143,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       }
 
       if (printer) {
-        // Edit mode (only 1 entry)
+        // Edit mode (update first entry)
         await updateDoc(doc(db, 'printers', printer.id), {
           ...entries[0],
           departmentCode: mainDepartmentCode,
@@ -109,6 +151,22 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
           updatedBy: auth.currentUser?.uid,
           updatedByName: currentUserName,
         });
+
+        // Add any newly appended entries in edit mode
+        if (entries.length > 1) {
+          const newEntries = entries.slice(1);
+          const promises = newEntries.map(entry => 
+            addDoc(collection(db, 'printers'), {
+              ...entry,
+              departmentCode: mainDepartmentCode,
+              companyCode: printer.companyCode || (departments.find(d => d.code === mainDepartmentCode)?.companyCode || 'ALL'),
+              createdAt: Date.now(),
+              createdBy: auth.currentUser?.uid,
+              createdByName: currentUserName,
+            })
+          );
+          await Promise.all(promises);
+        }
       } else {
         // Multi-add mode
         const promises = entries.map(entry => 
@@ -232,6 +290,22 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                   </>
                 )}
               </AnimatePresence>
+
+              {/* Show Existing Printers for selected department */}
+              {existingPrinters.length > 0 && (
+                <div className="mt-4 p-3 bg-white/60 rounded-xl border border-indigo-100">
+                  <p className="text-xs font-bold text-indigo-800 mb-2 flex items-center justify-between">
+                    <span>เครื่องพิมพ์ที่บันทึกแล้วในแผนกนี้ ({existingPrinters.length} เครื่อง)</span>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {existingPrinters.map(p => (
+                      <span key={p.id} className="text-[10px] font-semibold bg-white border border-indigo-100 text-slate-600 px-2 py-1 rounded-lg shadow-sm">
+                        {p.assetId} - {p.model}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-6">
@@ -240,7 +314,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
               </div>
               {entries.map((entry, index) => (
                 <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative">
-                  {!printer && entries.length > 1 && (
+                  {entries.length > 1 && (!printer || index > 0) && (
                     <button
                       type="button"
                       onClick={() => handleRemoveEntry(index)}
@@ -253,14 +327,32 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">รหัสทรัพย์สิน (Asset ID)</label>
-                      <input
-                        required
-                        type="text"
-                        value={entry.assetId}
-                        onChange={(e) => updateEntry(index, 'assetId', e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-                        placeholder="PRT-001"
-                      />
+                      <div className="relative">
+                        <input
+                          required
+                          type="text"
+                          value={entry.assetId}
+                          onChange={(e) => updateEntry(index, 'assetId', e.target.value)}
+                          className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                          placeholder="PRT-001"
+                        />
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                          {scanningIndex === index ? (
+                            <Loader2 size={18} className="text-indigo-500 animate-spin" />
+                          ) : (
+                            <label className="cursor-pointer p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors block">
+                              <Camera size={18} />
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                capture="environment" 
+                                className="hidden" 
+                                onChange={(e) => handleImageScan(e, index)}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">รุ่น (Model)</label>
@@ -325,7 +417,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
               ))}
             </div>
 
-            {!printer && (
+            <div className="pt-4">
               <button
                 type="button"
                 onClick={handleAddEntry}
@@ -334,7 +426,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                 <Plus size={20} />
                 เพิ่มรายการเครื่องพิมพ์อีก
               </button>
-            )}
+            </div>
 
             {error && (
               <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">

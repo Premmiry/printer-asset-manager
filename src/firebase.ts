@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocFromServer, doc, onSnapshot, query, orderBy, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocFromServer, doc, onSnapshot, query, orderBy, deleteDoc, updateDoc, setDoc, where } from 'firebase/firestore';
 const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
@@ -29,7 +29,8 @@ export {
   orderBy, 
   deleteDoc, 
   updateDoc,
-  setDoc
+  setDoc,
+  where
 };
 
 // Test connection
