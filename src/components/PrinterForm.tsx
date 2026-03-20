@@ -15,11 +15,11 @@ interface PrinterEntry {
   brand: PrinterBrand;
   type: PrinterType;
   colorMode: ColorMode;
-  departmentCode: string;
 }
 
 export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) => {
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [mainDepartmentCode, setMainDepartmentCode] = useState<string>(printer?.departmentCode || '');
   const [entries, setEntries] = useState<PrinterEntry[]>([
     {
       assetId: printer?.assetId || '',
@@ -27,12 +27,11 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
       brand: printer?.brand || 'Epson',
       type: printer?.type || 'Laser',
       colorMode: printer?.colorMode || 'Monochrome',
-      departmentCode: printer?.departmentCode || '',
     }
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [openDeptDropdownIdx, setOpenDeptDropdownIdx] = useState<number | null>(null);
+  const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
 
   const filteredDepts = departments.filter(d => 
@@ -50,8 +49,8 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
       setDepartments(data);
       
       // Set default department if not set
-      if (data.length > 0 && !printer) {
-        setEntries(prev => prev.map(e => ({ ...e, departmentCode: e.departmentCode || data[0].code })));
+      if (data.length > 0 && !printer && !mainDepartmentCode) {
+        setMainDepartmentCode(data[0].code);
       }
     });
     return () => unsubscribe();
@@ -64,7 +63,6 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
       brand: entries[entries.length - 1].brand,
       type: entries[entries.length - 1].type,
       colorMode: entries[entries.length - 1].colorMode,
-      departmentCode: entries[entries.length - 1].departmentCode,
     }]);
   };
 
@@ -90,10 +88,17 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
     try {
       const currentUserName = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Unknown';
 
+      if (!mainDepartmentCode) {
+        setError('กรุณาเลือกแผนก');
+        setLoading(false);
+        return;
+      }
+
       if (printer) {
         // Edit mode (only 1 entry)
         await updateDoc(doc(db, 'printers', printer.id), {
           ...entries[0],
+          departmentCode: mainDepartmentCode,
           updatedAt: Date.now(),
           updatedBy: auth.currentUser?.uid,
           updatedByName: currentUserName,
@@ -103,6 +108,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
         const promises = entries.map(entry => 
           addDoc(collection(db, 'printers'), {
             ...entry,
+            departmentCode: mainDepartmentCode,
             createdAt: Date.now(),
             createdBy: auth.currentUser?.uid,
             createdByName: currentUserName,
@@ -146,7 +152,83 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
 
         <div className="flex-1 overflow-y-auto p-6">
           <form onSubmit={handleSubmit} className="space-y-8">
+            
+            {/* Main Department Selection */}
+            <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 relative z-20">
+              <label className="block text-sm font-black text-indigo-900 uppercase mb-3">
+                เลือกแผนกหลัก (สำหรับทุกเครื่องที่เพิ่ม)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeptDropdownOpen(!isDeptDropdownOpen);
+                  setDeptSearch('');
+                }}
+                className="w-full px-4 py-3 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-left flex items-center justify-between font-medium shadow-sm hover:border-indigo-300 transition-colors"
+              >
+                <span className="truncate text-slate-700">
+                  {departments.find(d => d.code === mainDepartmentCode)?.thaiName || 'กรุณาเลือกแผนก...'}
+                </span>
+                <ChevronDown size={18} className={`text-indigo-400 transition-transform ${isDeptDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {isDeptDropdownOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-20" 
+                      onClick={() => setIsDeptDropdownOpen(false)} 
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl z-30 overflow-hidden"
+                    >
+                      <div className="p-3 border-b border-slate-50">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="ค้นหาแผนก..."
+                            value={deptSearch}
+                            onChange={(e) => setDeptSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto p-2">
+                        {filteredDepts.map((d) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => {
+                              setMainDepartmentCode(d.code);
+                              setIsDeptDropdownOpen(false);
+                              setDeptSearch('');
+                            }}
+                            className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors ${
+                              mainDepartmentCode === d.code ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700 font-medium'
+                            }`}
+                          >
+                            {d.thaiName}
+                          </button>
+                        ))}
+                        {filteredDepts.length === 0 && (
+                          <p className="text-center py-6 text-sm text-slate-400 italic">ไม่พบแผนกที่ค้นหา</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">รายละเอียดเครื่องพิมพ์ (Sub)</h3>
+              </div>
               {entries.map((entry, index) => (
                 <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative">
                   {!printer && entries.length > 1 && (
@@ -205,74 +287,6 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, onClose }) =>
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
-                    </div>
-                    <div className="relative">
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">แผนก (Department)</label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenDeptDropdownIdx(openDeptDropdownIdx === index ? null : index);
-                          setDeptSearch('');
-                        }}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-left flex items-center justify-between"
-                      >
-                        <span className="truncate">
-                          {departments.find(d => d.code === entry.departmentCode)?.thaiName || 'เลือกแผนก...'}
-                        </span>
-                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${openDeptDropdownIdx === index ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      <AnimatePresence>
-                        {openDeptDropdownIdx === index && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-20" 
-                              onClick={() => setOpenDeptDropdownIdx(null)} 
-                            />
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 10 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-slate-100 shadow-xl z-30 overflow-hidden"
-                            >
-                              <div className="p-2 border-b border-slate-50">
-                                <div className="relative">
-                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                  <input
-                                    autoFocus
-                                    type="text"
-                                    placeholder="ค้นหาแผนก..."
-                                    value={deptSearch}
-                                    onChange={(e) => setDeptSearch(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500"
-                                  />
-                                </div>
-                              </div>
-                              <div className="max-h-48 overflow-y-auto p-1">
-                                {filteredDepts.map((d) => (
-                                  <button
-                                    key={d.id}
-                                    type="button"
-                                    onClick={() => {
-                                      updateEntry(index, 'departmentCode', d.code);
-                                      setOpenDeptDropdownIdx(null);
-                                      setDeptSearch('');
-                                    }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                                      entry.departmentCode === d.code ? 'bg-indigo-50 text-indigo-600 font-bold' : 'hover:bg-slate-50 text-slate-600'
-                                    }`}
-                                  >
-                                    {d.thaiName}
-                                  </button>
-                                ))}
-                                {filteredDepts.length === 0 && (
-                                  <p className="text-center py-4 text-[10px] text-slate-400 italic">ไม่พบแผนก</p>
-                                )}
-                              </div>
-                            </motion.div>
-                          </>
-                        )}
-                      </AnimatePresence>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">โหมดสี</label>
