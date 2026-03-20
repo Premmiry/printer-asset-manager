@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.createdBy;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidPrinter(data) {
+      return data.assetId is string && data.assetId.size() > 0 && data.assetId.size() < 100 &&
+             data.model is string && data.model.size() > 0 && data.model.size() < 100 &&
+             data.brand in ["Epson", "Canon", "Brother", "HP", "Samsung", "Pantum", "Ricoh", "Oki", "Toshiba", "Label / Barcode Printer"] &&
+             data.type in ["Laser", "Inkjet", "Dot Matrix", "Thermal", "Multifunction"] &&
+             data.colorMode in ["Monochrome", "Color"] &&
+             data.departmentCode is string &&
+             data.createdAt is number &&
+             data.createdBy == request.auth.uid;
+    }
+
+    function isValidDepartment(data) {
+      return data.code is string && data.code.size() > 0 &&
+             data.thaiName is string && data.thaiName.size() > 0 &&
+             data.createdAt is number;
+    }
+
+    // Departments Collection
+    match /departments/{deptId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated(); // For simplicity in this app, allowing all auth users to manage config
+    }
+
+    // Printers Collection
+    match /printers/{printerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                      hasRequiredFields(['assetId', 'model', 'brand', 'type', 'colorMode', 'departmentCode', 'createdAt', 'createdBy']) &&
+                      hasOnlyAllowedFields(['assetId', 'model', 'brand', 'type', 'colorMode', 'departmentCode', 'createdAt', 'createdBy']) &&
+                      isValidPrinter(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() &&
+                      hasRequiredFields(['assetId', 'model', 'brand', 'type', 'colorMode', 'departmentCode', 'createdAt', 'createdBy']) &&
+                      hasOnlyAllowedFields(['assetId', 'model', 'brand', 'type', 'colorMode', 'departmentCode', 'createdAt', 'createdBy']) &&
+                      isValidPrinter(request.resource.data) &&
+                      request.resource.data.createdAt == resource.data.createdAt &&
+                      request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAuthenticated() && isDocOwner();
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "Department": {
+      "title": "Department",
+      "description": "A department in the organization.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "thaiName": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["code", "thaiName", "createdAt"]
+    },
+    "Printer": {
+      "title": "Printer",
+      "description": "A printer asset in the inventory.",
+      "type": "object",
+      "properties": {
+        "assetId": { "type": "string" },
+        "model": { "type": "string" },
+        "brand": { 
+          "type": "string",
+          "enum": ["Epson", "Canon", "Brother", "HP", "Samsung", "Pantum", "Ricoh", "Oki", "Toshiba", "Label / Barcode Printer"]
+        },
+        "type": { "type": "string" },
+        "colorMode": { "type": "string" },
+        "departmentCode": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["assetId", "model", "brand", "type", "colorMode", "departmentCode", "createdAt", "createdBy"]
+    }
+  },
+  "firestore": {
+    "departments": {
+      "schema": "Department",
+      "description": "Collection of organization departments."
+    },
+    "printers": {
+      "schema": "Printer",
+      "description": "Collection of all printer assets."
+    }
+  }
+}

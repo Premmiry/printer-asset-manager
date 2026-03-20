@@ -1,0 +1,5 @@
+{
+  "name": "Printer Asset Manager",
+  "description": "A mobile-first application for managing printer inventory, tracking asset IDs, models, and specifications.",
+  "requestFramePermissions": []
+}
