@@ -114,47 +114,84 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
 
     setScanningIndex(index);
     try {
+      // Create an image element from the file
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      // Try BarcodeDetector first (Native browser API, much faster and accurate for codes)
+      // Note: Not supported in all browsers yet, so we wrap it in a try-catch and check if it exists
+      if ('BarcodeDetector' in window) {
+        try {
+          // @ts-ignore - BarcodeDetector is not fully typed in standard TS yet
+          const barcodeDetector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'data_matrix'] });
+          const barcodes = await barcodeDetector.detect(img);
+          
+          if (barcodes.length > 0) {
+            const text = barcodes[0].rawValue;
+            setOcrResult(text);
+            setActiveOcrIndex(index);
+            setShowOcrReview(true);
+            setScanningIndex(null);
+            e.target.value = '';
+            URL.revokeObjectURL(img.src);
+            return; // Success with BarcodeDetector
+          }
+        } catch (barcodeErr) {
+          console.warn('BarcodeDetector failed or not supported for this image, falling back to OCR', barcodeErr);
+        }
+      }
+
+      // Fallback to Tesseract OCR if BarcodeDetector fails or doesn't find anything
       const result = await Tesseract.recognize(file, 'eng');
       const rawText = result.data.text;
       
       // 1. Remove all spaces to handle cases where OCR reads "H R - 5 6"
       const noSpaceText = rawText.replace(/\s+/g, '');
       
-      // 2. Extract potential ID using multiple Regex patterns to be more precise
+      // 2. Extract potential ID using multiple Regex patterns
       let finalId = '';
       
-      // Pattern 1: Exact match for HR-XX/XXXXX format (e.g. HR-56/00051)
-      const exactMatch = noSpaceText.match(/[A-Z]{2,}-\d{2,}\/\d{4,}/i);
+      // Pattern 1: Exact match for HR.59/00039 or HR-56/00051 (Allows dot or dash)
+      const exactMatch = noSpaceText.match(/[A-Z]{2,}[.-]\d{2,}\/\d{4,}/i);
       
-      // Pattern 2: More generic match, at least 2 letters, dash, numbers, optionally slash and numbers
-      const genericMatch = noSpaceText.match(/[A-Z]{2,}-\d+(?:\/\d+)?/i);
+      // Pattern 2: More generic match
+      const genericMatch = noSpaceText.match(/[A-Z]{2,}[.-]\d+(?:\/\d+)?/i);
 
       if (exactMatch) {
         finalId = exactMatch[0].toUpperCase();
       } else if (genericMatch) {
         finalId = genericMatch[0].toUpperCase();
       } else {
-        // Fallback: If no pattern matches, try to find ANY sequence that looks remotely like an ID
-        // Look for something with letters, dashes, slashes, and numbers, but NOT pure garbage
-        // e.g. PRT-001, COMP-123
-        const fallbackMatch = noSpaceText.match(/[A-Z0-9]{2,}[-/][A-Z0-9]+/i);
+        const fallbackMatch = noSpaceText.match(/[A-Z0-9]{2,}[.-/][A-Z0-9]+/i);
         if (fallbackMatch) {
             finalId = fallbackMatch[0].toUpperCase();
         }
       }
 
-      // If we got a result, clean it up just in case
       if (finalId) {
-        // Remove any trailing non-alphanumeric chars if they somehow sneaked in
         finalId = finalId.replace(/[^A-Z0-9]$/, '');
         setOcrResult(finalId);
         setActiveOcrIndex(index);
         setShowOcrReview(true);
       } else {
-        alert('ไม่พบตัวอักษรในภาพ พยายามถ่ายให้เห็นเฉพาะป้ายรหัสให้ชัดเจนที่สุดครับ');
+        // If regex fails completely, show raw text but cleaned up a bit so user can edit it manually
+        const cleanedRaw = rawText.replace(/[^a-zA-Z0-9./-]/g, '').toUpperCase();
+        if (cleanedRaw.length > 3) {
+          setOcrResult(cleanedRaw.substring(0, 20)); // Limit length
+          setActiveOcrIndex(index);
+          setShowOcrReview(true);
+        } else {
+          alert('ไม่พบรหัสในภาพ กรุณาพิมพ์รหัสด้วยตัวเองหรือถ่ายภาพใหม่อีกครั้งครับ');
+        }
       }
+      
+      URL.revokeObjectURL(img.src);
     } catch (err) {
-      console.error('OCR Error:', err);
+      console.error('Scan Error:', err);
       alert('เกิดข้อผิดพลาดในการแสกนภาพ');
     } finally {
       setScanningIndex(null);
