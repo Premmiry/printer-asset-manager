@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Department, Company, UserProfile } from '../types';
-import { db, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from '../firebase';
-import { Plus, Trash2, Settings, ChevronLeft, Building2, Upload, FileSpreadsheet, Loader2, Users } from 'lucide-react';
+import { db, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from '../firebase';
+import { Plus, Trash2, Settings, ChevronLeft, Building2, Upload, FileSpreadsheet, Loader2, Users, Check, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import * as XLSX from 'xlsx';
 
@@ -26,6 +26,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [importCompanyCode, setImportCompanyCode] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = userProfile?.role === 'admin';
@@ -38,8 +39,12 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
     const unsubCompanies = onSnapshot(qCompanies, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Company[];
       setCompanies(data);
-      if (data.length > 0 && !newDeptCompany) {
-        setNewDeptCompany(data[0].code);
+      const activeCompanies = data.filter(c => c.isActive !== false);
+      if (activeCompanies.length > 0 && !newDeptCompany) {
+        setNewDeptCompany(activeCompanies[0].code);
+      }
+      if (activeCompanies.length > 0 && !importCompanyCode) {
+        setImportCompanyCode(activeCompanies[0].code);
       }
     });
 
@@ -70,6 +75,9 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
       unsubUsers();
     };
   }, [userProfile, isAdmin]);
+
+  // Filter departments based on selected company in the add form
+  const filteredDepartments = departments.filter(d => !newDeptCompany || d.companyCode === newDeptCompany);
 
   const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +110,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
       await addDoc(collection(db, 'companies'), {
         code: newCompanyCode,
         name: newCompanyName,
+        isActive: true,
         createdAt: Date.now(),
       });
       setNewCompanyCode('');
@@ -114,9 +123,26 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
     }
   };
 
+  const handleToggleCompanyStatus = async (id: string, currentStatus: boolean | undefined) => {
+    try {
+      await updateDoc(doc(db, 'companies', id), {
+        isActive: currentStatus === undefined ? false : !currentStatus
+      });
+    } catch (err) {
+      console.error('Error toggling company status:', err);
+      alert('ไม่สามารถเปลี่ยนสถานะบริษัทได้');
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!importCompanyCode) {
+      alert('กรุณาเลือกบริษัทที่จะนำเข้าข้อมูลแผนกก่อน');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
     setUploading(true);
     const reader = new FileReader();
@@ -131,6 +157,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         const newDepts = data.map(row => ({
           code: String(row.code || row.Code || '').trim(),
           thaiName: String(row.ThaiName || row.thaiName || row.THAINAME || '').trim(),
+          companyCode: importCompanyCode,
           createdAt: Date.now()
         })).filter(d => d.code && d.thaiName);
 
@@ -170,6 +197,24 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         await deleteDoc(doc(db, 'departments', id));
       } catch (err) {
         console.error('Error deleting department:', err);
+      }
+    }
+  };
+
+  const handleClearAllDepartments = async () => {
+    if (window.confirm('คำเตือน: คุณต้องการลบข้อมูล "แผนกทั้งหมด" ใช่หรือไม่?\nการกระทำนี้ไม่สามารถย้อนกลับได้!')) {
+      if (window.confirm('ยืนยันอีกครั้ง: ลบข้อมูลแผนกทั้งหมดจริงๆ ใช่ไหม?')) {
+        setLoading(true);
+        try {
+          const promises = departments.map(dept => deleteDoc(doc(db, 'departments', dept.id)));
+          await Promise.all(promises);
+          alert('ลบข้อมูลแผนกทั้งหมดเรียบร้อยแล้ว');
+        } catch (err) {
+          console.error('Error clearing departments:', err);
+          alert('เกิดข้อผิดพลาดในการลบข้อมูลแผนกทั้งหมด');
+        } finally {
+          setLoading(false);
+        }
       }
     }
   };
@@ -233,22 +278,46 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
             <div className="space-y-3">
               {companies.map((comp) => (
                 <div key={comp.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group">
-                  <div>
+                  <div className="flex items-center">
                     <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mr-2">
                       {comp.code}
                     </span>
-                    <span className="font-medium text-slate-700">{comp.name}</span>
+                    <span className={`font-medium mr-3 ${comp.isActive !== false ? 'text-slate-700' : 'text-slate-400 line-through'}`}>
+                      {comp.name}
+                    </span>
+                    {comp.isActive !== false ? (
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Check size={10} /> เปิดใช้งาน
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <X size={10} /> ปิดใช้งาน
+                      </span>
+                    )}
                   </div>
-                  <button
-                    onClick={async () => {
-                      if (window.confirm('ยืนยันการลบบริษัทนี้?')) {
-                        await deleteDoc(doc(db, 'companies', comp.id));
-                      }
-                    }}
-                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={() => handleToggleCompanyStatus(comp.id, comp.isActive)}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                        comp.isActive !== false 
+                          ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' 
+                          : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                      }`}
+                    >
+                      {comp.isActive !== false ? 'ปิดการแสดงผล' : 'เปิดการแสดงผล'}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('ยืนยันการลบบริษัทนี้?')) {
+                          await deleteDoc(doc(db, 'companies', comp.id));
+                        }
+                      }}
+                      className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors"
+                      title="ลบบริษัท"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
               ))}
               {companies.length === 0 && (
@@ -266,7 +335,27 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
               จัดการแผนก (Departments)
             </h2>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {isAdmin && departments.length > 0 && (
+                <button
+                  onClick={handleClearAllDepartments}
+                  disabled={loading}
+                  className="px-3 py-2 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-100 transition-all disabled:opacity-50"
+                  title="ลบข้อมูลแผนกทั้งหมด"
+                >
+                  ล้างข้อมูลแผนก
+                </button>
+              )}
+              <select
+                value={importCompanyCode}
+                onChange={(e) => setImportCompanyCode(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="">เลือกบริษัทก่อนนำเข้า...</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.code}>{c.name}</option>
+                ))}
+              </select>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -275,9 +364,10 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 className="hidden"
               />
               <button
-                disabled={uploading}
+                disabled={uploading || !importCompanyCode}
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-all disabled:opacity-50"
+                title={!importCompanyCode ? "กรุณาเลือกบริษัทก่อนนำเข้าข้อมูล" : ""}
               >
                 {uploading ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
                 นำเข้า Excel
@@ -286,17 +376,22 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
           </div>
           
           <form onSubmit={handleAddDepartment} className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <select
-              required
-              value={newDeptCompany}
-              onChange={(e) => setNewDeptCompany(e.target.value)}
-              className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
-            >
-              <option value="" disabled>เลือกบริษัท...</option>
-              {companies.map(c => (
-                <option key={c.id} value={c.code}>{c.name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                required
+                value={newDeptCompany}
+                onChange={(e) => setNewDeptCompany(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
+              >
+                <option value="" disabled>เลือกบริษัท...</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.code}>{c.name}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
             <input
               required
               type="text"
@@ -324,28 +419,37 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
             </div>
           </form>
 
-          <div className="space-y-3">
-            {departments.map((dept) => (
-                <div key={dept.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group">
-                  <div>
-                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mr-2">
-                      {dept.companyCode}
-                    </span>
-                    <span className="text-xs font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded mr-2">
-                      {dept.code}
-                    </span>
-                    <span className="font-medium text-slate-700">{dept.thaiName}</span>
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            {filteredDepartments.map((dept) => (
+                <div key={dept.id} className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl group transition-colors border border-slate-100/50">
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                          {dept.companyCode}
+                        </span>
+                        <span className="text-xs font-bold text-slate-500 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-200">
+                          {dept.code}
+                        </span>
+                      </div>
+                      <span className="font-semibold text-slate-700 text-sm">{dept.thaiName}</span>
+                    </div>
                   </div>
                 <button
                   onClick={() => handleDelete(dept.id)}
-                  className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                  className="p-2 text-rose-500 hover:bg-rose-100 hover:text-rose-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                  title="ลบแผนก"
                 >
                   <Trash2 size={18} />
                 </button>
               </div>
             ))}
-            {departments.length === 0 && !uploading && (
-              <p className="text-center py-8 text-slate-400 text-sm italic">ยังไม่มีข้อมูลแผนก</p>
+            {filteredDepartments.length === 0 && !uploading && (
+              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <Building2 size={32} className="mx-auto text-slate-300 mb-3" />
+                <p className="text-slate-500 font-medium">ยังไม่มีข้อมูลแผนกสำหรับบริษัทที่เลือก</p>
+                <p className="text-slate-400 text-sm mt-1">เพิ่มแผนกใหม่ด้านบน หรือนำเข้าจากไฟล์ Excel</p>
+              </div>
             )}
           </div>
         </section>

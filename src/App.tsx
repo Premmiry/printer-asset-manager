@@ -23,6 +23,7 @@ export default function App() {
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
   const [view, setView] = useState<'list' | 'config' | 'report'>('list');
+  const [toastMessage, setToastMessage] = useState({ type: '', text: '' });
   
   // Auth states
   const [authUsername, setAuthUsername] = useState('');
@@ -34,15 +35,18 @@ export default function App() {
   // Fetch companies for login/register
   // Data Starter Script (Run once for admin to setup Yanhee)
   const setupDataStarter = async () => {
-    if (!user || userProfile?.role !== 'admin') return;
+    const isSpecialAdmin = user?.email?.startsWith('prem@') || user?.displayName?.toLowerCase() === 'prem';
+    if (!user || (userProfile?.role !== 'admin' && !isSpecialAdmin)) {
+      alert('คุณไม่มีสิทธิ์ใช้งานฟังก์ชันนี้');
+      return;
+    }
     
     try {
       setLoading(true);
+      console.log("Starting Data Starter...");
       
       // 1. Create Yanhee Company if not exists
       const qCompanies = query(collection(db, 'companies'));
-      const companySnap = await getDocFromServer(doc(db, 'companies', 'YANHEE')).catch(() => null);
-      
       let yanheeExists = false;
       companies.forEach(c => {
         if (c.code === 'YANHEE') yanheeExists = true;
@@ -55,24 +59,37 @@ export default function App() {
           createdAt: Date.now()
         });
         console.log("Created Yanhee company");
+      } else {
+        console.log("Yanhee company already exists");
       }
 
       // 2. Update all existing departments to belong to YANHEE
-      const qDepts = query(collection(db, 'departments'));
-      // Note: We can't easily update all docs without fetching them first, but we already have them in state!
+      // We already have departments in state
       const updatePromises = departments
         .filter(d => !d.companyCode) // Only update those without a company code
         .map(d => updateDoc(doc(db, 'departments', d.id), { companyCode: 'YANHEE' }));
       
-      if (updatePromises.length > 0) {
-        await Promise.all(updatePromises);
-        console.log(`Updated ${updatePromises.length} departments to YANHEE`);
+      // 3. Update all existing printers to belong to YANHEE
+      const printerPromises = printers
+        .filter(p => !p.companyCode)
+        .map(p => updateDoc(doc(db, 'printers', p.id), { companyCode: 'YANHEE' }));
+      
+      if (printerPromises.length > 0) {
+        await Promise.all(printerPromises);
+        console.log(`Updated ${printerPromises.length} printers to YANHEE`);
       }
 
-      alert('ตั้งค่าข้อมูลเริ่มต้น (Data Starter) สำหรับ บ.ยันฮี เรียบร้อยแล้ว!');
-    } catch (err) {
+      const msg = 'ตั้งค่าข้อมูลเริ่มต้น (Data Starter) สำหรับ บ.ยันฮี เรียบร้อยแล้ว!';
+      console.log(msg);
+      setToastMessage({ type: 'success', text: msg });
+      setTimeout(() => setToastMessage({ type: '', text: '' }), 5000);
+      alert(msg);
+    } catch (err: any) {
       console.error("Error setting up data starter:", err);
-      alert('เกิดข้อผิดพลาดในการตั้งค่าข้อมูลเริ่มต้น');
+      const errMsg = 'เกิดข้อผิดพลาด: ' + (err.message || 'Unknown error');
+      setToastMessage({ type: 'error', text: errMsg });
+      setTimeout(() => setToastMessage({ type: '', text: '' }), 5000);
+      alert(errMsg);
     } finally {
       setLoading(false);
     }
@@ -88,8 +105,9 @@ export default function App() {
       setCompanies(data);
       
       // Auto-select the first company if not set and data is available
-      if (data.length > 0 && !authCompany) {
-        setAuthCompany(data[0].code);
+      const activeCompanies = data.filter(c => c.isActive !== false);
+      if (activeCompanies.length > 0 && !authCompany) {
+        setAuthCompany(activeCompanies[0].code);
       }
     });
     return () => unsubscribe();
@@ -347,18 +365,23 @@ export default function App() {
             {authUsername.toLowerCase() !== 'prem' && (
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">บริษัท</label>
-                <select
-                  value={authCompany}
-                  onChange={(e) => setAuthCompany(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
-                >
-                  <option value="" disabled>เลือกบริษัท...</option>
-                  {companies.map(c => (
-                    <option key={c.id} value={c.code}>{c.name} ({c.code})</option>
-                  ))}
-                </select>
-                {companies.length === 0 && (
-                  <p className="text-xs text-rose-500 mt-1">* ยังไม่มีข้อมูลบริษัทในระบบ กรุณาให้ Admin เพิ่มข้อมูลก่อน</p>
+                <div className="relative">
+                  <select
+                    value={authCompany}
+                    onChange={(e) => setAuthCompany(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
+                  >
+                    <option value="" disabled>เลือกบริษัท...</option>
+                    {companies.filter(c => c.isActive !== false).map(c => (
+                      <option key={c.id} value={c.code}>{c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDown size={18} />
+                  </div>
+                </div>
+                {companies.filter(c => c.isActive !== false).length === 0 && (
+                  <p className="text-xs text-rose-500 mt-1">* ยังไม่มีข้อมูลบริษัทที่เปิดใช้งานในระบบ</p>
                 )}
               </div>
             )}
@@ -413,10 +436,10 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {(userProfile?.role === 'admin' || user?.email?.startsWith('prem@')) && (
+            {(userProfile?.role === 'admin' || user?.email?.startsWith('prem@') || user?.displayName?.toLowerCase() === 'prem') && (
               <button
                 onClick={setupDataStarter}
-                className="hidden sm:flex items-center gap-2 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-amber-200 transition-colors mr-2"
+                className="flex items-center gap-2 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-amber-200 transition-colors mr-2"
                 title="ตั้งค่าข้อมูลเริ่มต้น (ยันฮี)"
               >
                 <span>Run Data Starter</span>
@@ -441,6 +464,28 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-6 py-8">
+        <AnimatePresence>
+          {toastMessage.text && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={`mb-4 p-4 rounded-2xl border font-medium flex items-center justify-between shadow-sm ${
+                toastMessage.type === 'error' 
+                  ? 'bg-rose-100 text-rose-800 border-rose-200' 
+                  : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+              }`}
+            >
+              <span>{toastMessage.text}</span>
+              <button onClick={() => setToastMessage({ type: '', text: '' })} className={`p-1 rounded-full transition-colors ${
+                toastMessage.type === 'error' ? 'hover:bg-rose-200' : 'hover:bg-emerald-200'
+              }`}>
+                <CloseIcon size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Navigation Tabs */}
         <div className="flex gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-100/50 mb-8">
           <button
