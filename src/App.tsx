@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, onSnapshot, collection, query, orderBy, doc, getDocFromServer, addDoc, setDoc } from './firebase';
+import { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, onSnapshot, collection, query, orderBy, doc, getDocFromServer, addDoc, setDoc, updateDoc } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Printer, Department, Company, UserProfile } from './types';
 import { PrinterForm } from './components/PrinterForm';
