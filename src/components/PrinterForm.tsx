@@ -37,6 +37,11 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
   const [deptSearch, setDeptSearch] = useState('');
   const [existingPrinters, setExistingPrinters] = useState<Printer[]>([]);
   const [scanningIndex, setScanningIndex] = useState<number | null>(null);
+  
+  // OCR Review States
+  const [ocrResult, setOcrResult] = useState<string>('');
+  const [showOcrReview, setShowOcrReview] = useState(false);
+  const [activeOcrIndex, setActiveOcrIndex] = useState<number | null>(null);
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -113,7 +118,10 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       // Cleanup text: keep only alphanumeric characters, dashes, and standard printable symbols
       const text = result.data.text.replace(/[\n\r]+/g, '').trim();
       if (text) {
-        updateEntry(index, 'assetId', text);
+        // Show review popup instead of updating directly
+        setOcrResult(text);
+        setActiveOcrIndex(index);
+        setShowOcrReview(true);
       } else {
         alert('ไม่พบตัวอักษรในภาพ ลองถ่ายให้ชัดเจนขึ้นครับ');
       }
@@ -123,6 +131,15 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     } finally {
       setScanningIndex(null);
       e.target.value = ''; // Reset input
+    }
+  };
+
+  const confirmOcrResult = () => {
+    if (activeOcrIndex !== null) {
+      updateEntry(activeOcrIndex, 'assetId', ocrResult);
+      setShowOcrReview(false);
+      setActiveOcrIndex(null);
+      setOcrResult('');
     }
   };
 
@@ -340,8 +357,9 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                           {scanningIndex === index ? (
                             <Loader2 size={18} className="text-indigo-500 animate-spin" />
                           ) : (
-                            <label className="cursor-pointer p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors block">
+                            <label className="cursor-pointer p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors block" title="ถ่ายภาพหรือเลือกรูปภาพเพื่อแสกนรหัส">
                               <Camera size={18} />
+                              {/* Using capture="environment" will open camera on mobile, but fallback to file picker on PC */}
                               <input 
                                 type="file" 
                                 accept="image/*" 
@@ -460,6 +478,58 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
           </form>
         </div>
       </div>
+
+      {/* OCR Review Popup */}
+      <AnimatePresence>
+        {showOcrReview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full"
+            >
+              <div className="flex items-center gap-3 mb-4 text-indigo-600">
+                <Camera size={24} />
+                <h3 className="text-lg font-bold text-slate-900">ตรวจสอบรหัสที่แสกนได้</h3>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                กรุณาตรวจสอบและแก้ไขรหัสให้ถูกต้องก่อนกดยืนยัน
+              </p>
+              <input
+                type="text"
+                autoFocus
+                value={ocrResult}
+                onChange={(e) => setOcrResult(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border-2 border-indigo-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all text-lg font-bold text-center tracking-widest text-slate-800 mb-6"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowOcrReview(false);
+                    setOcrResult('');
+                    setActiveOcrIndex(null);
+                  }}
+                  className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={confirmOcrResult}
+                  className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+                >
+                  ยืนยัน
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
