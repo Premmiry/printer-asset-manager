@@ -62,3 +62,5 @@ npm run build
 3. เพิ่มแผนกด้วยตนเอง หรือใช้ปุ่ม **"นำเข้า Excel"**
    - ไฟล์ Excel ควรมีหัวตาราง (Header) ชื่อ `code` และ `ThaiName`
 4. เริ่มเพิ่มข้อมูลเครื่องพิมพ์ได้ทันที!
+
+ตัวอย่างแอพ: [Printer Asset Manager](https://printer-asset-manager.vercel.app/)
