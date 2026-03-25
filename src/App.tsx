@@ -115,7 +115,8 @@ export default function App() {
       try {
         const typePrintersSnap = await getDocs(collection(db, 'typeprinters'));
         if (typePrintersSnap.empty) {
-          await Promise.all(defaultTypePrinters.map(item => addDoc(collection(db, 'typeprinters'), { id: item.id, name: item.name, createdAt: Date.now() })));
+          const { setDoc } = await import('firebase/firestore');
+          await Promise.all(defaultTypePrinters.map(item => setDoc(doc(db, 'typeprinters', item.id), { id: item.id, name: item.name, createdAt: Date.now() })));
           console.log("Created default Type Printers");
         }
       } catch (e) {

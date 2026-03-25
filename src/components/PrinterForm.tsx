@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Printer, PrinterBrand, PrinterType, ColorMode, Department, UserProfile, PrinterTypeConfig, PrinterBrandConfig, TypePrinterConfig } from '../types';
-import { db, auth, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, where } from '../firebase';
+import { db, auth, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, where, setDoc } from '../firebase';
 import { X, Save, Printer as PrinterIcon, Plus, Trash2, Search, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -118,7 +118,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
         { id: '1', name: 'เครื่องบริษัท' },
         { id: '2', name: 'เครื่องเช่า' }
       ];
-      await Promise.all(defaults.map(item => addDoc(collection(db, 'typeprinters'), { id: item.id, name: item.name, createdAt: Date.now() })));
+      await Promise.all(defaults.map(item => setDoc(doc(db, 'typeprinters', item.id), { id: item.id, name: item.name, createdAt: Date.now() })));
     } finally {
       setSeedingTypePrinters(false);
     }
