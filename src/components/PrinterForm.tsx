@@ -147,6 +147,29 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     newEntries[index] = { ...newEntries[index], [field]: value };
     setEntries(newEntries);
   };
+  const getAgeFromTwoDigit = (twoDigit: string) => {
+    if (!twoDigit) return '';
+    const currentYearBE = new Date().getFullYear() + 543;
+    const purchaseYearFull = parseInt(`25${twoDigit}`);
+    if (isNaN(purchaseYearFull)) return '';
+    const age = Math.max(0, currentYearBE - purchaseYearFull);
+    return String(age);
+  };
+  const validateForm = () => {
+    if (!mainDepartmentCode) return 'กรุณาเลือกแผนก';
+    for (const e of entries) {
+      if (!e.assetId || !e.assetId.trim()) return 'กรุณากรอก Asset ID';
+      if (!e.model || !e.model.trim()) return 'กรุณากรอก รุ่น';
+      if (!e.brand) return 'กรุณาเลือกยี่ห้อ';
+      if (!e.type) return 'กรุณาเลือกประเภท';
+      if (!e.typeprinterId) return 'กรุณาเลือกประเภทเครื่องพิมพ์';
+      if (e.purchaseYear2Digit) {
+        const n = Number(e.purchaseYear2Digit);
+        if (!Number.isInteger(n) || n < 0 || n > 99) return 'ปีซื้อไม่ถูกต้อง (ต้องเป็นตัวเลข 00-99)';
+      }
+    }
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,6 +179,12 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     setError(null);
 
     try {
+      const validationError = validateForm();
+      if (validationError) {
+        setError(validationError);
+        setLoading(false);
+        return;
+      }
       const currentUserName = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Unknown';
 
       if (!mainDepartmentCode) {
@@ -478,6 +507,16 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                           <span className="text-[11px] font-medium text-slate-400">กรอกปีซื้อเป็นตัวเลข 2 หลัก เช่น 65</span>
                         )}
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">อายุการใช้งาน (ปี)</label>
+                      <input
+                        type="text"
+                        value={getAgeFromTwoDigit(entry.purchaseYear2Digit)}
+                        readOnly
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700"
+                        placeholder="-"
+                      />
                     </div>
                   </div>
                 </div>
