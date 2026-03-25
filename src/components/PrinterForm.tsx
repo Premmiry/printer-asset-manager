@@ -42,6 +42,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
   const [printerTypes, setPrinterTypes] = useState<PrinterTypeConfig[]>([]);
   const [printerBrands, setPrinterBrands] = useState<PrinterBrandConfig[]>([]);
   const [typePrinters, setTypePrinters] = useState<TypePrinterConfig[]>([]);
+  const [seedingTypePrinters, setSeedingTypePrinters] = useState(false);
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -108,6 +109,20 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       unsubTypePrinters();
     };
   }, []);
+
+  const seedTypePrinters = async () => {
+    if (!auth.currentUser) return;
+    try {
+      setSeedingTypePrinters(true);
+      const defaults = [
+        { id: '1', name: 'เครื่องบริษัท' },
+        { id: '2', name: 'เครื่องเช่า' }
+      ];
+      await Promise.all(defaults.map(item => addDoc(collection(db, 'typeprinters'), { id: item.id, name: item.name, createdAt: Date.now() })));
+    } finally {
+      setSeedingTypePrinters(false);
+    }
+  };
 
   const handleAddEntry = () => {
     setEntries([...entries, {
@@ -416,6 +431,19 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </select>
+                      {typePrinters.length === 0 && (
+                        <div className="mt-2 flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl p-2">
+                          <span className="text-[11px] font-bold text-amber-700">ยังไม่มีข้อมูลประเภทเครื่องพิมพ์</span>
+                          <button
+                            type="button"
+                            onClick={seedTypePrinters}
+                            disabled={seedingTypePrinters}
+                            className="text-[11px] bg-amber-100 text-amber-700 px-2 py-1 rounded-lg hover:bg-amber-200 disabled:opacity-50 font-bold"
+                          >
+                            {seedingTypePrinters ? 'กำลังโหลด...' : 'โหลดข้อมูลเริ่มต้น'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ปีซื้อ (2 หลัก)</label>
@@ -428,6 +456,28 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                         placeholder="65"
                       />
+                      <div className="mt-2 flex items-center gap-2">
+                        {entry.purchaseYear2Digit ? (
+                          (() => {
+                            const currentYearBE = new Date().getFullYear() + 543;
+                            const purchaseYearFull = parseInt(`25${entry.purchaseYear2Digit}`);
+                            const age = Math.max(0, currentYearBE - purchaseYearFull);
+                            return (
+                              <>
+                                <span className="text-[11px] font-bold text-slate-500">ผลลัพธ์</span>
+                                <span className="text-[11px] font-bold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700">
+                                  อายุการใช้งาน {age} ปี
+                                </span>
+                                <span className="text-[10px] px-2 py-1 rounded-lg bg-slate-100 text-slate-500 font-medium">
+                                  ซื้อปี พ.ศ. {purchaseYearFull}
+                                </span>
+                              </>
+                            );
+                          })()
+                        ) : (
+                          <span className="text-[11px] font-medium text-slate-400">กรอกปีซื้อเป็นตัวเลข 2 หลัก เช่น 65</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
