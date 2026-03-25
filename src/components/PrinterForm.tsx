@@ -18,7 +18,6 @@ interface PrinterEntry {
   colorMode: ColorMode;
   typeprinterId: string;
   purchaseYear2Digit: string;
-  purchaseYear: string;
 }
 
 export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, onClose }) => {
@@ -33,7 +32,6 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       colorMode: printer?.colorMode || 'Monochrome',
       typeprinterId: (printer as any)?.typeprinterId || '',
       purchaseYear2Digit: (printer as any)?.purchaseYear2Digit || '',
-      purchaseYear: (printer as any)?.purchaseYear || '',
     }
   ]);
   const [loading, setLoading] = useState(false);
@@ -135,7 +133,6 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       colorMode: entries[entries.length - 1].colorMode,
       typeprinterId: entries[entries.length - 1].typeprinterId,
       purchaseYear2Digit: entries[entries.length - 1].purchaseYear2Digit,
-      purchaseYear: entries[entries.length - 1].purchaseYear,
     }]);
   };
 
@@ -158,14 +155,6 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
     const age = Math.max(0, currentYearBE - purchaseYearFull);
     return String(age);
   };
-  const getAgeFromYear = (yearStr: string) => {
-    if (!yearStr) return '';
-    const currentYearBE = new Date().getFullYear() + 543;
-    const purchaseYearFull = parseInt(yearStr);
-    if (isNaN(purchaseYearFull)) return '';
-    const age = Math.max(0, currentYearBE - purchaseYearFull);
-    return String(age);
-  };
   const validateForm = () => {
     if (!mainDepartmentCode) return 'กรุณาเลือกแผนก';
     for (const e of entries) {
@@ -174,11 +163,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       if (!e.brand) return 'กรุณาเลือกยี่ห้อ';
       if (!e.type) return 'กรุณาเลือกประเภท';
       if (!e.typeprinterId) return 'กรุณาเลือกประเภทเครื่องพิมพ์';
-      if (e.purchaseYear) {
-        const n = Number(e.purchaseYear);
-        const currentYearBE = new Date().getFullYear() + 543;
-        if (!Number.isInteger(n) || n < 1900 || n > currentYearBE) return 'ปีซื้อไม่ถูกต้อง (กรุณากรอกปี พ.ศ. เต็ม 4 หลัก)';
-      } else if (e.purchaseYear2Digit) {
+      if (e.purchaseYear2Digit) {
         const n2 = Number(e.purchaseYear2Digit);
         if (!Number.isInteger(n2) || n2 < 0 || n2 > 99) return 'ปีซื้อไม่ถูกต้อง (ต้องเป็นตัวเลข 00-99)';
       }
@@ -490,31 +475,21 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ปีซื้อ (ปีปกติ)</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ปีซื้อ (2 หลัก)</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
-                          min="1900"
-                          max={new Date().getFullYear() + 543}
-                          value={entry.purchaseYear}
-                          onChange={(e) => updateEntry(index, 'purchaseYear', e.target.value)}
+                          min="0"
+                          max="99"
+                          value={entry.purchaseYear2Digit}
+                          onChange={(e) => updateEntry(index, 'purchaseYear2Digit', e.target.value)}
                           className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-                          placeholder="2565"
+                          placeholder="65"
                         />
                         <span className="text-xs font-bold px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 whitespace-nowrap">
-                          อายุการใช้งาน : {getAgeFromYear(entry.purchaseYear) || getAgeFromTwoDigit(entry.purchaseYear2Digit) || '-'} ปี
+                          อายุการใช้งาน : {getAgeFromTwoDigit(entry.purchaseYear2Digit) || '-'} ปี
                         </span>
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">อายุการใช้งาน (ปี)</label>
-                      <input
-                        type="text"
-                        value={getAgeFromTwoDigit(entry.purchaseYear2Digit)}
-                        readOnly
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700"
-                        placeholder="-"
-                      />
                     </div>
                   </div>
                 </div>
