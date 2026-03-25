@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, PrinterBrand, PrinterType, ColorMode, Department, UserProfile, PrinterTypeConfig, PrinterBrandConfig } from '../types';
+import { Printer, PrinterBrand, PrinterType, ColorMode, Department, UserProfile, PrinterTypeConfig, PrinterBrandConfig, TypePrinterConfig } from '../types';
 import { db, auth, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, where } from '../firebase';
 import { X, Save, Printer as PrinterIcon, Plus, Trash2, Search, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,6 +16,8 @@ interface PrinterEntry {
   brand: PrinterBrand;
   type: PrinterType;
   colorMode: ColorMode;
+  typeprinterId: string;
+  purchaseYear2Digit: string;
 }
 
 export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, onClose }) => {
@@ -28,6 +30,8 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       brand: printer?.brand || '',
       type: printer?.type || '',
       colorMode: printer?.colorMode || 'Monochrome',
+      typeprinterId: (printer as any)?.typeprinterId || '',
+      purchaseYear2Digit: (printer as any)?.purchaseYear2Digit || '',
     }
   ]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +41,7 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
   const [existingPrinters, setExistingPrinters] = useState<Printer[]>([]);
   const [printerTypes, setPrinterTypes] = useState<PrinterTypeConfig[]>([]);
   const [printerBrands, setPrinterBrands] = useState<PrinterBrandConfig[]>([]);
+  const [typePrinters, setTypePrinters] = useState<TypePrinterConfig[]>([]);
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -92,9 +97,15 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       setPrinterBrands(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PrinterBrandConfig[]);
     });
 
+    const qTypePrinters = query(collection(db, 'typeprinters'), orderBy('id', 'asc'));
+    const unsubTypePrinters = onSnapshot(qTypePrinters, (snapshot) => {
+      setTypePrinters(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TypePrinterConfig[]);
+    });
+
     return () => {
       unsubTypes();
       unsubBrands();
+      unsubTypePrinters();
     };
   }, []);
 
@@ -105,6 +116,8 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
       brand: entries[entries.length - 1].brand,
       type: entries[entries.length - 1].type,
       colorMode: entries[entries.length - 1].colorMode,
+      typeprinterId: entries[entries.length - 1].typeprinterId,
+      purchaseYear2Digit: entries[entries.length - 1].purchaseYear2Digit,
     }]);
   };
 
@@ -389,6 +402,32 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                           สี
                         </button>
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ประเภทเครื่องพิมพ์</label>
+                      <select
+                        required
+                        value={entry.typeprinterId}
+                        onChange={(e) => updateEntry(index, 'typeprinterId', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white appearance-none"
+                      >
+                        <option value="" disabled>เลือกประเภทเครื่องพิมพ์...</option>
+                        {typePrinters.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ปีซื้อ (2 หลัก)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        value={entry.purchaseYear2Digit}
+                        onChange={(e) => updateEntry(index, 'purchaseYear2Digit', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                        placeholder="65"
+                      />
                     </div>
                   </div>
                 </div>

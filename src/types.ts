@@ -15,6 +15,12 @@ export interface PrinterBrandConfig {
   createdAt: number;
 }
 
+export interface TypePrinterConfig {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
 export type ColorMode = 'Monochrome' | 'Color';
 export type UserRole = 'admin' | 'user';
 
@@ -58,4 +64,6 @@ export interface Printer {
   updatedAt?: number;
   updatedBy?: string;
   updatedByName?: string;
+  typeprinterId?: string;
+  purchaseYear2Digit?: string;
 }

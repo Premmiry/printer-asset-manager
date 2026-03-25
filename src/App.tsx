@@ -82,6 +82,7 @@ export default function App() {
       // 4. Seed default Printer Types and Brands if missing
       const defaultTypes = ['Laser', 'Inkjet', 'Dot Matrix', 'Thermal', 'Multifunction'];
       const defaultBrands = ['Epson', 'Canon', 'Brother', 'HP', 'Samsung', 'Pantum', 'Ricoh', 'Oki', 'Toshiba', 'Label / Barcode Printer'];
+      const defaultTypePrinters = [{ id: '1', name: 'เครื่องบริษัท' }, { id: '2', name: 'เครื่องเช่า' }];
 
       // Just add them (to avoid duplicates we could check, but Run Data Starter is run once usually)
       // To be safe, let's just add them. But we should ideally check if they exist.
@@ -109,6 +110,16 @@ export default function App() {
         }
       } catch (e) {
         console.warn("Could not check/add printerBrands, maybe permission denied or already exists", e);
+      }
+
+      try {
+        const typePrintersSnap = await getDocs(collection(db, 'typeprinters'));
+        if (typePrintersSnap.empty) {
+          await Promise.all(defaultTypePrinters.map(item => addDoc(collection(db, 'typeprinters'), { id: item.id, name: item.name, createdAt: Date.now() })));
+          console.log("Created default Type Printers");
+        }
+      } catch (e) {
+        console.warn("Could not check/add typeprinters, maybe permission denied or already exists", e);
       }
 
       const msg = 'ตั้งค่าข้อมูลเริ่มต้น (Data Starter) สำหรับ บ.ยันฮี เรียบร้อยแล้ว!';

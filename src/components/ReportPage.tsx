@@ -39,14 +39,20 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
   }, [printers, departments, selectedDept]);
 
   const exportToExcel = () => {
+    const currentYearBE = new Date().getFullYear() + 543;
     const data = printers.map(p => {
       const dept = departments.find(d => d.code === p.departmentCode);
+      const typeprinterName = p.typeprinterId === '1' ? 'เครื่องบริษัท' : p.typeprinterId === '2' ? 'เครื่องเช่า' : '';
+      const purchaseYearFull = p.purchaseYear2Digit ? parseInt(`25${p.purchaseYear2Digit}`) : NaN;
+      const age = isNaN(purchaseYearFull) ? '' : Math.max(0, currentYearBE - purchaseYearFull);
       return {
         'รหัสทรัพย์สิน': p.assetId,
         'รุ่น': p.model,
         'ยี่ห้อ': p.brand,
         'ประเภท': p.type,
         'โหมดสี': p.colorMode === 'Color' ? 'สี' : 'ขาว-ดำ',
+        'ประเภทเครื่องพิมพ์': typeprinterName,
+        'อายุการใช้งาน (ปี)': age,
         'แผนก': dept?.thaiName || 'ไม่ระบุ',
         'วันที่บันทึก': new Date(p.createdAt).toLocaleString('th-TH')
       };
