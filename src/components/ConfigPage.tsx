@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Department, Company, UserProfile, PrinterTypeConfig, PrinterBrandConfig } from '../types';
+import { Department, Company, UserProfile, PrinterTypeConfig, PrinterBrandConfig, TypePrinterConfig } from '../types';
 import { db, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from '../firebase';
-import { Plus, Trash2, Settings, ChevronLeft, Building2, Upload, FileSpreadsheet, Loader2, Users, Check, X, Printer, Tag } from 'lucide-react';
+import { Plus, Trash2, Settings, ChevronLeft, Building2, Upload, FileSpreadsheet, Loader2, Users, Check, X, Printer, Tag, Pencil } from 'lucide-react';
 import { motion } from 'motion/react';
 import * as XLSX from 'xlsx';
 
@@ -16,6 +16,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [printerTypes, setPrinterTypes] = useState<PrinterTypeConfig[]>([]);
   const [printerBrands, setPrinterBrands] = useState<PrinterBrandConfig[]>([]);
+  const [typePrinters, setTypePrinters] = useState<TypePrinterConfig[]>([]);
   
   // Department form
   const [newDeptCode, setNewDeptCode] = useState('');
@@ -29,11 +30,22 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
   // Printer Type & Brand form
   const [newPrinterType, setNewPrinterType] = useState('');
   const [newPrinterBrand, setNewPrinterBrand] = useState('');
+  const [newTypePrinter, setNewTypePrinter] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [importCompanyCode, setImportCompanyCode] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deptSearch, setDeptSearch] = useState('');
+
+  const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
+  const [editingDeptName, setEditingDeptName] = useState('');
+  const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
+  const [editingTypeName, setEditingTypeName] = useState('');
+  const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
+  const [editingBrandName, setEditingBrandName] = useState('');
+  const [editingTypePrinterId, setEditingTypePrinterId] = useState<string | null>(null);
+  const [editingTypePrinterName, setEditingTypePrinterName] = useState('');
 
   const isAdmin = userProfile?.role === 'admin';
 
@@ -87,12 +99,19 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
       setPrinterBrands(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PrinterBrandConfig[]);
     });
 
+    // Load Type Printers
+    const qTypePrinters = query(collection(db, 'typeprinters'), orderBy('id', 'asc'));
+    const unsubTypePrinters = onSnapshot(qTypePrinters, (snapshot) => {
+      setTypePrinters(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TypePrinterConfig[]);
+    });
+
     return () => {
       unsubCompanies();
       unsubDepts();
       unsubUsers();
       unsubTypes();
       unsubBrands();
+      unsubTypePrinters();
     };
   }, [userProfile, isAdmin]);
 
@@ -108,8 +127,13 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
     }
   };
 
-  // Filter departments based on selected company in the add form
-  const filteredDepartments = departments.filter(d => !newDeptCompany || d.companyCode === newDeptCompany);
+  // Filter departments by selected company and search query
+  const filteredDepartments = departments.filter(d => {
+    const companyMatch = !newDeptCompany || d.companyCode === newDeptCompany;
+    const q = deptSearch.trim().toLowerCase();
+    const searchMatch = !q || d.thaiName.toLowerCase().includes(q) || d.code.toLowerCase().includes(q);
+    return companyMatch && searchMatch;
+  });
 
   const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,6 +154,18 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
       alert('ไม่สามารถเพิ่มแผนกได้');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateDepartmentName = async (deptId: string) => {
+    if (!editingDeptName.trim()) return;
+    try {
+      await updateDoc(doc(db, 'departments', deptId), { thaiName: editingDeptName.trim() });
+      setEditingDeptId(null);
+      setEditingDeptName('');
+    } catch (err) {
+      console.error('Error updating department name:', err);
+      alert('ไม่สามารถแก้ไขชื่อแผนกได้');
     }
   };
 
@@ -184,6 +220,24 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
       setNewPrinterBrand('');
     } catch (err) {
       console.error('Error adding printer brand:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddTypePrinter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTypePrinter.trim()) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'typeprinters'), {
+        id: String(Date.now()),
+        name: newTypePrinter.trim(),
+        createdAt: Date.now(),
+      });
+      setNewTypePrinter('');
+    } catch (err) {
+      console.error('Error adding typeprinter:', err);
     } finally {
       setLoading(false);
     }
@@ -282,6 +336,42 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
           setLoading(false);
         }
       }
+    }
+  };
+
+  const handleUpdatePrinterTypeName = async (typeId: string) => {
+    if (!editingTypeName.trim()) return;
+    try {
+      await updateDoc(doc(db, 'printerTypes', typeId), { name: editingTypeName.trim() });
+      setEditingTypeId(null);
+      setEditingTypeName('');
+    } catch (err) {
+      console.error('Error updating type name:', err);
+      alert('ไม่สามารถแก้ไขชื่อประเภทได้');
+    }
+  };
+
+  const handleUpdatePrinterBrandName = async (brandId: string) => {
+    if (!editingBrandName.trim()) return;
+    try {
+      await updateDoc(doc(db, 'printerBrands', brandId), { name: editingBrandName.trim() });
+      setEditingBrandId(null);
+      setEditingBrandName('');
+    } catch (err) {
+      console.error('Error updating brand name:', err);
+      alert('ไม่สามารถแก้ไขชื่อยี่ห้อได้');
+    }
+  };
+
+  const handleUpdateTypePrinterName = async (typePrinterId: string) => {
+    if (!editingTypePrinterName.trim()) return;
+    try {
+      await updateDoc(doc(db, 'typeprinters', typePrinterId), { name: editingTypePrinterName.trim() });
+      setEditingTypePrinterId(null);
+      setEditingTypePrinterName('');
+    } catch (err) {
+      console.error('Error updating typeprinter name:', err);
+      alert('ไม่สามารถแก้ไขชื่อประเภทเครื่องพิมพ์ได้');
     }
   };
 
@@ -400,8 +490,14 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
               <Building2 size={20} className="text-indigo-600" />
               จัดการแผนก (Departments)
             </h2>
-            
             <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={deptSearch}
+                onChange={(e) => setDeptSearch(e.target.value)}
+                placeholder="ค้นหาชื่อ/รหัสแผนก"
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
               {isAdmin && departments.length > 0 && (
                 <button
                   onClick={handleClearAllDepartments}
@@ -498,16 +594,52 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                           {dept.code}
                         </span>
                       </div>
-                      <span className="font-semibold text-slate-700 text-sm">{dept.thaiName}</span>
+                      {editingDeptId === dept.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editingDeptName}
+                            onChange={(e) => setEditingDeptName(e.target.value)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                          <button
+                            onClick={() => handleUpdateDepartmentName(dept.id)}
+                            className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"
+                            title="บันทึกชื่อแผนก"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button
+                            onClick={() => { setEditingDeptId(null); setEditingDeptName(''); }}
+                            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"
+                            title="ยกเลิก"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-slate-700 text-sm">{dept.thaiName}</span>
+                      )}
                     </div>
                   </div>
-                <button
-                  onClick={() => handleDelete(dept.id)}
-                  className="p-2 text-rose-500 hover:bg-rose-100 hover:text-rose-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                  title="ลบแผนก"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                  {editingDeptId === dept.id ? null : (
+                    <button
+                      onClick={() => { setEditingDeptId(dept.id); setEditingDeptName(dept.thaiName); }}
+                      className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-xl"
+                      title="แก้ไขชื่อแผนก"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(dept.id)}
+                    className="p-2 text-rose-500 hover:bg-rose-100 hover:text-rose-600 rounded-xl transition-all shadow-sm"
+                    title="ลบแผนก"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
             ))}
             {filteredDepartments.length === 0 && !uploading && (
@@ -566,18 +698,36 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
               <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                 {printerTypes.map((type) => (
                   <div key={type.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group">
-                    <span className="font-medium text-slate-700 ml-2">{type.name}</span>
-                    <button
-                      onClick={async () => {
-                        if (window.confirm(`ยืนยันการลบประเภท "${type.name}"?`)) {
-                          await deleteDoc(doc(db, 'printerTypes', type.id));
-                        }
-                      }}
-                      className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      title="ลบประเภท"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {editingTypeId === type.id ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="text"
+                          value={editingTypeName}
+                          onChange={(e) => setEditingTypeName(e.target.value)}
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                        <button onClick={() => handleUpdatePrinterTypeName(type.id)} className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"><Check size={16} /></button>
+                        <button onClick={() => { setEditingTypeId(null); setEditingTypeName(''); }} className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"><X size={16} /></button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="font-medium text-slate-700 ml-2">{type.name}</span>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100">
+                          <button onClick={() => { setEditingTypeId(type.id); setEditingTypeName(type.name); }} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg" title="แก้ไขชื่อประเภท"><Pencil size={16} /></button>
+                          <button
+                            onClick={async () => {
+                              if (window.confirm(`ยืนยันการลบประเภท "${type.name}"?`)) {
+                                await deleteDoc(doc(db, 'printerTypes', type.id));
+                              }
+                            }}
+                            className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors"
+                            title="ลบประเภท"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
                 {printerTypes.length === 0 && (
@@ -630,18 +780,36 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
               <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                 {printerBrands.map((brand) => (
                   <div key={brand.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group">
-                    <span className="font-medium text-slate-700 ml-2">{brand.name}</span>
-                    <button
-                      onClick={async () => {
-                        if (window.confirm(`ยืนยันการลบยี่ห้อ "${brand.name}"?`)) {
-                          await deleteDoc(doc(db, 'printerBrands', brand.id));
-                        }
-                      }}
-                      className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      title="ลบยี่ห้อ"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {editingBrandId === brand.id ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="text"
+                          value={editingBrandName}
+                          onChange={(e) => setEditingBrandName(e.target.value)}
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                        <button onClick={() => handleUpdatePrinterBrandName(brand.id)} className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"><Check size={16} /></button>
+                        <button onClick={() => { setEditingBrandId(null); setEditingBrandName(''); }} className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"><X size={16} /></button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="font-medium text-slate-700 ml-2">{brand.name}</span>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100">
+                          <button onClick={() => { setEditingBrandId(brand.id); setEditingBrandName(brand.name); }} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg" title="แก้ไขชื่อยี่ห้อ"><Pencil size={16} /></button>
+                          <button
+                            onClick={async () => {
+                              if (window.confirm(`ยืนยันการลบยี่ห้อ "${brand.name}"?`)) {
+                                await deleteDoc(doc(db, 'printerBrands', brand.id));
+                              }
+                            }}
+                            className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors"
+                            title="ลบยี่ห้อ"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
                 {printerBrands.length === 0 && (
@@ -650,6 +818,77 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
               </div>
             </section>
           </div>
+        )}
+
+        {/* Admin Only: TypePrinters Management */}
+        {isAdmin && (
+          <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Printer size={20} className="text-indigo-600" />
+                จัดการประเภทเครื่องพิมพ์ (TypePrinters)
+              </h2>
+              {typePrinters.length === 0 && (
+                <span className="text-xs bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg">ยังไม่มีข้อมูล</span>
+              )}
+            </div>
+            <form onSubmit={handleAddTypePrinter} className="flex gap-2 mb-6">
+              <input
+                required
+                type="text"
+                placeholder="เพิ่มประเภทเครื่องพิมพ์ใหม่"
+                value={newTypePrinter}
+                onChange={(e) => setNewTypePrinter(e.target.value)}
+                className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              />
+              <button
+                disabled={loading}
+                type="submit"
+                className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              >
+                <Plus size={24} />
+              </button>
+            </form>
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              {typePrinters.map((tp) => (
+                <div key={tp.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group">
+                  {editingTypePrinterId === tp.id ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        type="text"
+                        value={editingTypePrinterName}
+                        onChange={(e) => setEditingTypePrinterName(e.target.value)}
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                      <button onClick={() => handleUpdateTypePrinterName(tp.id)} className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"><Check size={16} /></button>
+                      <button onClick={() => { setEditingTypePrinterId(null); setEditingTypePrinterName(''); }} className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"><X size={16} /></button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-medium text-slate-700 ml-2">{tp.name}</span>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100">
+                        <button onClick={() => { setEditingTypePrinterId(tp.id); setEditingTypePrinterName(tp.name); }} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg" title="แก้ไขชื่อ"><Pencil size={16} /></button>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`ยืนยันการลบ "${tp.name}"?`)) {
+                              await deleteDoc(doc(db, 'typeprinters', tp.id));
+                            }
+                          }}
+                          className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors"
+                          title="ลบ"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+              {typePrinters.length === 0 && (
+                <p className="text-center py-4 text-slate-400 text-sm italic">ยังไม่มีข้อมูลประเภทเครื่องพิมพ์</p>
+              )}
+            </div>
+          </section>
         )}
 
         {/* Admin Only: User Management */}
