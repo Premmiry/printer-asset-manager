@@ -14,7 +14,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const itemsPerPage = 12;
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -47,23 +47,6 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedDept]);
-
-  useEffect(() => {
-    const calcItemsPerPage = () => {
-      if (window.matchMedia('(min-width:1280px)').matches) {
-        setItemsPerPage(16);
-      } else if (window.matchMedia('(min-width:1024px)').matches) {
-        setItemsPerPage(12);
-      } else if (window.matchMedia('(min-width:768px)').matches) {
-        setItemsPerPage(8);
-      } else {
-        setItemsPerPage(6);
-      }
-    };
-    calcItemsPerPage();
-    window.addEventListener('resize', calcItemsPerPage);
-    return () => window.removeEventListener('resize', calcItemsPerPage);
-  }, []);
 
   const exportToExcel = () => {
     const currentYearBE = new Date().getFullYear() + 543;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Printer, Department } from '../types';
 import { Edit2, Trash2, Printer as PrinterIcon, Tag, Layers, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,7 +12,7 @@ interface PrinterListProps {
 
 export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments, onEdit }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const itemsPerPage = 12;
 
   const totalPages = Math.ceil(printers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -28,23 +28,6 @@ export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments,
       }
     }
   };
-
-  useEffect(() => {
-    const calcItemsPerPage = () => {
-      if (window.matchMedia('(min-width:1280px)').matches) {
-        setItemsPerPage(16);
-      } else if (window.matchMedia('(min-width:1024px)').matches) {
-        setItemsPerPage(12);
-      } else if (window.matchMedia('(min-width:768px)').matches) {
-        setItemsPerPage(8);
-      } else {
-        setItemsPerPage(6);
-      }
-    };
-    calcItemsPerPage();
-    window.addEventListener('resize', calcItemsPerPage);
-    return () => window.removeEventListener('resize', calcItemsPerPage);
-  }, []);
 
   if (printers.length === 0) {
     return (
