@@ -79,7 +79,7 @@ export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments,
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                     <Building2 size={12} className="text-slate-400" />
-                    <span className="truncate max-w-[150px]">{departments.find(d => d.code === printer.departmentCode)?.thaiName || printer.departmentCode}</span>
+                    <span className="truncate max-w-[140px] sm:max-w-[200px] md:max-w-[260px]">{departments.find(d => d.code === printer.departmentCode)?.thaiName || printer.departmentCode}</span>
                   </div>
                   <div className="flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
                     <Tag size={12} className="text-indigo-400" />

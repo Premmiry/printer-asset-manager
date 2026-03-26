@@ -476,17 +476,17 @@ export const PrinterForm: React.FC<PrinterFormProps> = ({ printer, userProfile, 
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ปีซื้อ (2 หลัก)</label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center items-start gap-2">
                         <input
                           type="number"
                           min="0"
                           max="99"
                           value={entry.purchaseYear2Digit}
                           onChange={(e) => updateEntry(index, 'purchaseYear2Digit', e.target.value)}
-                          className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                          className="w-full sm:flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                           placeholder="65"
                         />
-                        <span className="text-xs font-bold px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 whitespace-nowrap">
+                        <span className="text-xs font-bold px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 sm:whitespace-nowrap">
                           อายุการใช้งาน : {getAgeFromTwoDigit(entry.purchaseYear2Digit) || '-'} ปี
                         </span>
                       </div>

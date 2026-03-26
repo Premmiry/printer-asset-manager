@@ -377,8 +377,8 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-100 px-6 py-4 sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
+      <header className="bg-white border-b border-slate-100 px-4 sm:px-6 py-4 sticky top-0 z-40">
+        <div className="max-w-3xl md:max-w-5xl mx-auto flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
             <ChevronLeft size={24} className="text-slate-600" />
           </button>
@@ -391,19 +391,19 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 py-8">
+      <main className="max-w-3xl md:max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         
         {/* Admin Only: Company Management */}
         {isAdmin && (
-          <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">
-            <div className="flex items-center justify-between mb-6">
+          <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Building2 size={20} className="text-indigo-600" />
                 จัดการบริษัท (Companies)
               </h2>
             </div>
             
-            <form onSubmit={handleAddCompany} className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <form onSubmit={handleAddCompany} className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
               <input
                 required
                 type="text"
@@ -484,13 +484,13 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         )}
 
         {/* Department Management */}
-        <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">
-          <div className="flex items-center justify-between mb-6">
+        <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 mb-6 sm:mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Building2 size={20} className="text-indigo-600" />
               จัดการแผนก (Departments)
             </h2>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
               <input
                 type="text"
                 value={deptSearch}
@@ -537,7 +537,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
             </div>
           </div>
           
-          <form onSubmit={handleAddDepartment} className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <form onSubmit={handleAddDepartment} className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
             <div className="relative">
               <select
                 required
@@ -581,9 +581,9 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
             </div>
           </form>
 
-          <div className="space-y-3 max-h-125 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-2 sm:space-y-3 max-h-64 md:max-h-96 overflow-y-auto pr-2 custom-scrollbar">
             {filteredDepartments.map((dept) => (
-                <div key={dept.id} className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl group transition-colors border border-slate-100/50">
+                <div key={dept.id} className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl group transition-colors border border-slate-100/50">
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
@@ -653,10 +653,10 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         </section>
         {/* Admin Only: Printer Types and Brands Management */}
         {isAdmin && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
             {/* Printer Types */}
-            <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-6">
+            <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Printer size={20} className="text-indigo-600" />
                   จัดการประเภท (Types)
@@ -677,7 +677,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 )}
               </div>
               
-              <form onSubmit={handleAddPrinterType} className="flex gap-2 mb-6">
+              <form onSubmit={handleAddPrinterType} className="flex flex-col sm:flex-row gap-2 mb-6">
                 <input
                   required
                   type="text"
@@ -695,7 +695,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 </button>
               </form>
 
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-3 max-h-64 md:max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                 {printerTypes.map((type) => (
                   <div key={type.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group">
                     {editingTypeId === type.id ? (
@@ -737,8 +737,8 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
             </section>
 
             {/* Printer Brands */}
-            <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-6">
+            <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Tag size={20} className="text-indigo-600" />
                   จัดการยี่ห้อ (Brands)
@@ -759,7 +759,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 )}
               </div>
               
-              <form onSubmit={handleAddPrinterBrand} className="flex gap-2 mb-6">
+              <form onSubmit={handleAddPrinterBrand} className="flex flex-col sm:flex-row gap-2 mb-6">
                 <input
                   required
                   type="text"
@@ -777,7 +777,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 </button>
               </form>
 
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-3 max-h-64 md:max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                 {printerBrands.map((brand) => (
                   <div key={brand.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group">
                     {editingBrandId === brand.id ? (
@@ -822,8 +822,8 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
 
         {/* Admin Only: TypePrinters Management */}
         {isAdmin && (
-          <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">
-            <div className="flex items-center justify-between mb-6">
+          <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Printer size={20} className="text-indigo-600" />
                 จัดการประเภทเครื่องพิมพ์ (TypePrinters)
@@ -832,7 +832,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 <span className="text-xs bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg">ยังไม่มีข้อมูล</span>
               )}
             </div>
-            <form onSubmit={handleAddTypePrinter} className="flex gap-2 mb-6">
+            <form onSubmit={handleAddTypePrinter} className="flex flex-col sm:flex-row gap-2 mb-6">
               <input
                 required
                 type="text"
@@ -849,7 +849,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 <Plus size={24} />
               </button>
             </form>
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-3 max-h-64 md:max-h-80 overflow-y-auto pr-2 custom-scrollbar">
               {typePrinters.map((tp) => (
                 <div key={tp.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group">
                   {editingTypePrinterId === tp.id ? (

@@ -164,7 +164,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
         </AnimatePresence>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {reportData.map((dept, idx) => (
           <motion.div
             key={dept.id}
@@ -174,7 +174,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
             className="bg-white rounded-3xl border border-slate-100 shadow-md hover:shadow-lg transition-shadow overflow-hidden"
           >
             <div className="p-6 bg-gradient-to-br from-white to-slate-50/50">
-              <div className="flex items-start justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
                     <Building2 size={28} />
@@ -190,7 +190,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-between">
                   <div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">ขาว-ดำ</div>
