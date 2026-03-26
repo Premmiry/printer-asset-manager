@@ -719,16 +719,18 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating Action Button */}
-      <button
-        onClick={() => {
-          setEditingPrinter(null);
-          setIsFormOpen(true);
-        }}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-200 flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all z-40"
-      >
-        <Plus size={32} />
-      </button>
+      {/* Floating Action Button (only on List view) */}
+      {view === 'list' && (
+        <button
+          onClick={() => {
+            setEditingPrinter(null);
+            setIsFormOpen(true);
+          }}
+          className="fixed bottom-8 right-8 w-16 h-16 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-200 flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all z-40"
+        >
+          <Plus size={32} />
+        </button>
+      )}
 
       {/* Form Modal */}
       <AnimatePresence>

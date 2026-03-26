@@ -14,7 +14,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12;
+  const itemsPerPage = 10;
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -76,6 +76,90 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
 
   return (
     <div className="space-y-6 pb-20">
+      <div className="sticky top-16 z-30">
+        <div className="relative">
+          <button
+            onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
+            className="w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-bold text-slate-700 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Building2 size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <span className="truncate">{selectedDeptName}</span>
+            </div>
+            <ChevronDown size={18} className={`text-slate-400 transition-transform ${isDeptDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence>
+            {isDeptDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsDeptDropdownOpen(false)} 
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl z-20 overflow-hidden"
+                >
+                  <div className="p-2 border-b border-slate-50">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="พิมพ์ชื่อแผนก..."
+                        value={deptSearch}
+                        onChange={(e) => setDeptSearch(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 bg-slate-50 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      {deptSearch && (
+                        <button 
+                          onClick={() => setDeptSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <CloseIcon size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
+                    <button
+                      onClick={() => {
+                        setSelectedDept('all');
+                        setIsDeptDropdownOpen(false);
+                        setDeptSearch('');
+                      }}
+                      className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                        selectedDept === 'all' ? 'bg-indigo-50 text-indigo-600 font-bold' : 'hover:bg-slate-50 text-slate-600'
+                      }`}
+                    >
+                      ดูรายงานทุกแผนก
+                    </button>
+                    {filteredDepts.map((dept) => (
+                      <button
+                        key={dept.id}
+                        onClick={() => {
+                          setSelectedDept(dept.code);
+                          setIsDeptDropdownOpen(false);
+                          setDeptSearch('');
+                        }}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                          selectedDept === dept.code ? 'bg-indigo-50 text-indigo-600 font-bold' : 'hover:bg-slate-50 text-slate-600'
+                        }`}
+                      >
+                        {dept.thaiName}
+                      </button>
+                    ))}
+                    {filteredDepts.length === 0 && (
+                      <p className="text-center py-4 text-xs text-slate-400 italic">ไม่พบแผนกที่ค้นหา</p>
+                    )}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">รายงานสรุป</h2>
@@ -143,17 +227,17 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
                     <PrinterIcon size={12} />
                     รายการเครื่องพิมพ์
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1 custom-scrollbar">
                     {dept.printers.map(p => (
-                      <div key={p.id} className="flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 transition-colors rounded-xl border border-slate-100 shadow-sm group">
+                      <div key={p.id} className="w-full overflow-hidden flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 transition-colors rounded-xl border border-slate-100 shadow-sm group">
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-500 to-indigo-500' : 'bg-slate-400'}`} />
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${p.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-500 to-indigo-500' : 'bg-slate-400'}`} />
                           <div className="min-w-0">
                             <div className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors truncate">{p.assetId}</div>
                             <div className="text-[11px] text-slate-500 font-medium truncate">{p.brand} <span className="text-slate-400">{p.model}</span></div>
                           </div>
                         </div>
-                        <div className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-500 font-medium whitespace-nowrap ml-2">
+                        <div className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-500 font-medium whitespace-nowrap ml-2 shrink-0">
                           {p.type}
                         </div>
                       </div>
@@ -189,7 +273,7 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
         </div>
       )
       }
-      <div className="relative z-20">
+      <div className="hidden">
         <button
           onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
           className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-slate-100 shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-bold text-slate-700 flex items-center justify-between"
@@ -326,17 +410,17 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
                     <PrinterIcon size={12} />
                     รายการเครื่องพิมพ์
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1 custom-scrollbar">
                     {dept.printers.map(p => (
-                      <div key={p.id} className="flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 transition-colors rounded-xl border border-slate-100 shadow-sm group">
+                      <div key={p.id} className="w-full overflow-hidden flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 transition-colors rounded-xl border border-slate-100 shadow-sm group">
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-500 to-indigo-500' : 'bg-slate-400'}`} />
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${p.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-500 to-indigo-500' : 'bg-slate-400'}`} />
                           <div className="min-w-0">
                             <div className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors truncate">{p.assetId}</div>
                             <div className="text-[11px] text-slate-500 font-medium truncate">{p.brand} <span className="text-slate-400">{p.model}</span></div>
                           </div>
                         </div>
-                        <div className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-500 font-medium whitespace-nowrap ml-2">
+                        <div className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-500 font-medium whitespace-nowrap ml-2 shrink-0">
                           {p.type}
                         </div>
                       </div>

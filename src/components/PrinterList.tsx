@@ -12,7 +12,7 @@ interface PrinterListProps {
 
 export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments, onEdit }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12;
+  const itemsPerPage = 10;
 
   const totalPages = Math.ceil(printers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;

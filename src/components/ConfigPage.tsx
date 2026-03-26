@@ -141,7 +141,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
 
   // Filter departments by selected company and search query
   const filteredDepartments = departments.filter(d => {
-    const companyMatch = !newDeptCompany || d.companyCode === newDeptCompany;
+    const companyMatch = !importCompanyCode || d.companyCode === importCompanyCode;
     const q = deptSearch.trim().toLowerCase();
     const searchMatch = !q || d.thaiName.toLowerCase().includes(q) || d.code.toLowerCase().includes(q);
     return companyMatch && searchMatch;
@@ -149,14 +149,14 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
 
   const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDeptCode || !newDeptName || !newDeptCompany) return;
+    if (!newDeptCode || !newDeptName || !importCompanyCode) return;
 
     setLoading(true);
     try {
       await addDoc(collection(db, 'departments'), {
         code: newDeptCode,
         thaiName: newDeptName,
-        companyCode: newDeptCompany,
+        companyCode: importCompanyCode,
         createdAt: Date.now(),
       });
       setNewDeptCode('');
@@ -433,28 +433,28 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
               </h2>
             </div>
             
-            <form onSubmit={handleAddCompany} className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
-              <input
-                required
-                type="text"
-                placeholder="รหัสบริษัท (Code)"
-                value={newCompanyCode}
-                onChange={(e) => setNewCompanyCode(e.target.value)}
-                className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              />
-              <div className="flex gap-2">
+            <form onSubmit={handleAddCompany} className="mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] md:grid-cols-[2fr_6fr_auto] lg:grid-cols-[3fr_8fr_auto] items-stretch gap-2 sm:gap-3">
+                <input
+                  required
+                  type="text"
+                  placeholder="รหัสบริษัท (Code)"
+                  value={newCompanyCode}
+                  onChange={(e) => setNewCompanyCode(e.target.value)}
+                  className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                />
                 <input
                   required
                   type="text"
                   placeholder="ชื่อบริษัท"
                   value={newCompanyName}
                   onChange={(e) => setNewCompanyName(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  className="min-w-0 max-w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                 />
                 <button
                   disabled={loading}
                   type="submit"
-                  className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
                 >
                   <Plus size={24} />
                 </button>
@@ -516,99 +516,32 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         {/* Department Management */}
         {activeTab === 'departments' && (
         <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 mb-6 sm:mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Building2 size={20} className="text-indigo-600" />
               จัดการแผนก (Departments)
             </h2>
-            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-              <input
-                type="text"
-                value={deptSearch}
-                onChange={(e) => setDeptSearch(e.target.value)}
-                placeholder="ค้นหาชื่อ/รหัสแผนก"
-                className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-              {isAdmin && departments.length > 0 && (
-                <button
-                  onClick={handleClearAllDepartments}
-                  disabled={loading}
-                  className="px-3 py-2 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-100 transition-all disabled:opacity-50"
-                  title="ลบข้อมูลแผนกทั้งหมด"
-                >
-                  ล้างข้อมูลแผนก
-                </button>
-              )}
-              <select
-                value={importCompanyCode}
-                onChange={(e) => setImportCompanyCode(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                <option value="">เลือกบริษัทก่อนนำเข้า...</option>
-                {companies.map(c => (
-                  <option key={c.id} value={c.code}>{c.name}</option>
-                ))}
-              </select>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".xlsx, .xls"
-                className="hidden"
-              />
-              <button
-                disabled={uploading || !importCompanyCode}
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-all disabled:opacity-50"
-                title={!importCompanyCode ? "กรุณาเลือกบริษัทก่อนนำเข้าข้อมูล" : ""}
-              >
-                {uploading ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
-                นำเข้า Excel
-              </button>
-            </div>
           </div>
-          
-          <form onSubmit={handleAddDepartment} className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
-            <div className="relative">
-              <select
-                required
-                value={newDeptCompany}
-                onChange={(e) => setNewDeptCompany(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white"
-              >
-                <option value="" disabled>เลือกบริษัท...</option>
-                {companies.map(c => (
-                  <option key={c.id} value={c.code}>{c.name}</option>
-                ))}
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-            </div>
-            <input
-              required
-              type="text"
-              placeholder="รหัสแผนก (Code)"
-              value={newDeptCode}
-              onChange={(e) => setNewDeptCode(e.target.value)}
-              className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-            />
-            <div className="flex gap-2">
-              <input
-                required
-                type="text"
-                placeholder="ชื่อแผนก (Thai Name)"
-                value={newDeptName}
-                onChange={(e) => setNewDeptName(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              />
-              <button
-                disabled={loading}
-                type="submit"
-                className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
-              >
-                <Plus size={24} />
-              </button>
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-6">
+            <input type="text" value={deptSearch} onChange={(e) => setDeptSearch(e.target.value)} placeholder="ค้นหาชื่อ/รหัสแผนก" className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none flex-1 min-w-[180px]" />
+            {isAdmin && departments.length > 0 && (
+              <button onClick={handleClearAllDepartments} disabled={loading} className="px-3 py-2 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-100 transition-all disabled:opacity-50" title="ลบข้อมูลแผนกทั้งหมด">ล้างข้อมูลแผนก</button>
+            )}
+            <select value={importCompanyCode} onChange={(e) => setImportCompanyCode(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-w-[180px]">
+              <option value="">เลือกบริษัท...</option>
+              {companies.map(c => (<option key={c.id} value={c.code}>{c.name}</option>))}
+            </select>
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls" className="hidden" />
+            <button disabled={uploading || !importCompanyCode} onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-all disabled:opacity-50" title={!importCompanyCode ? 'กรุณาเลือกบริษัทก่อนนำเข้าข้อมูล' : ''}>
+              {uploading ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
+              นำเข้า Excel
+            </button>
+          </div>
+          <form onSubmit={handleAddDepartment} className="mb-6">
+            <div className="flex flex-wrap items-stretch gap-2 md:gap-3">
+              <input required type="text" placeholder="รหัสแผนก (Code)" value={newDeptCode} onChange={(e) => setNewDeptCode(e.target.value)} className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all basis-40 sm:basis-48 md:basis-56" />
+              <input required type="text" placeholder="ชื่อแผนก (Thai Name)" value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} className="min-w-0 max-w-full flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
+              <button disabled={loading} type="submit" className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-colors disabled:opacity-50 shrink-0"><Plus size={24} /></button>
             </div>
           </form>
 
@@ -721,7 +654,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 <button
                   disabled={loading}
                   type="submit"
-                  className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
                 >
                   <Plus size={24} />
                 </button>
@@ -803,7 +736,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                 <button
                   disabled={loading}
                   type="submit"
-                  className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
                 >
                   <Plus size={24} />
                 </button>
@@ -876,7 +809,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
               <button
                 disabled={loading}
                 type="submit"
-                className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
               >
                 <Plus size={24} />
               </button>
@@ -980,11 +913,11 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
                   จัดการบริษัท (Companies)
                 </h2>
               </div>
-              <form onSubmit={handleAddCompany} className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
-                <input required type="text" placeholder="รหัสบริษัท (Code)" value={newCompanyCode} onChange={(e) => setNewCompanyCode(e.target.value)} className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-                <div className="flex gap-2">
-                  <input required type="text" placeholder="ชื่อบริษัท" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-                  <button disabled={loading} type="submit" className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"><Plus size={24} /></button>
+              <form onSubmit={handleAddCompany} className="mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] md:grid-cols-[2fr_6fr_auto] lg:grid-cols-[3fr_8fr_auto] items-stretch gap-2 sm:gap-3">
+                  <input required type="text" placeholder="รหัสบริษัท (Code)" value={newCompanyCode} onChange={(e) => setNewCompanyCode(e.target.value)} className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
+                  <input required type="text" placeholder="ชื่อบริษัท" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="min-w-0 max-w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
+                  <button disabled={loading} type="submit" className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-colors disabled:opacity-50"><Plus size={24} /></button>
                 </div>
               </form>
               <div className="space-y-3">
@@ -1011,39 +944,32 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
           )}
           
           <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Building2 size={20} className="text-indigo-600" />
                 จัดการแผนก (Departments)
               </h2>
-              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                <input type="text" value={deptSearch} onChange={(e) => setDeptSearch(e.target.value)} placeholder="ค้นหาชื่อ/รหัสแผนก" className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-                {isAdmin && departments.length > 0 && (
-                  <button onClick={handleClearAllDepartments} disabled={loading} className="px-3 py-2 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-100 transition-all disabled:opacity-50" title="ลบข้อมูลแผนกทั้งหมด">ล้างข้อมูลแผนก</button>
-                )}
-                <select value={importCompanyCode} onChange={(e) => setImportCompanyCode(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                  <option value="">เลือกบริษัทก่อนนำเข้า...</option>
-                  {companies.map(c => (<option key={c.id} value={c.code}>{c.name}</option>))}
-                </select>
-                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls" className="hidden" />
-                <button disabled={uploading || !importCompanyCode} onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-all disabled:opacity-50" title={!importCompanyCode ? 'กรุณาเลือกบริษัทก่อนนำเข้าข้อมูล' : ''}>
-                  {uploading ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
-                  นำเข้า Excel
-                </button>
-              </div>
             </div>
-            <form onSubmit={handleAddDepartment} className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
-              <div className="relative">
-                <select required value={newDeptCompany} onChange={(e) => setNewDeptCompany(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none bg-white">
-                  <option value="" disabled>เลือกบริษัท...</option>
-                  {companies.map(c => (<option key={c.id} value={c.code}>{c.name}</option>))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
-              </div>
-              <input required type="text" placeholder="รหัสแผนก (Code)" value={newDeptCode} onChange={(e) => setNewDeptCode(e.target.value)} className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-              <div className="flex gap-2">
-                <input required type="text" placeholder="ชื่อแผนก (Thai Name)" value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
-                <button disabled={loading} type="submit" className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"><Plus size={24} /></button>
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-6">
+              <input type="text" value={deptSearch} onChange={(e) => setDeptSearch(e.target.value)} placeholder="ค้นหาชื่อ/รหัสแผนก" className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none flex-1 min-w-[200px]" />
+              {isAdmin && departments.length > 0 && (
+                <button onClick={handleClearAllDepartments} disabled={loading} className="px-3 py-2 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-100 transition-all disabled:opacity-50" title="ลบข้อมูลแผนกทั้งหมด">ล้างข้อมูลแผนก</button>
+              )}
+              <select value={importCompanyCode} onChange={(e) => setImportCompanyCode(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-w-[200px]">
+                <option value="">เลือกบริษัท...</option>
+                {companies.map(c => (<option key={c.id} value={c.code}>{c.name}</option>))}
+              </select>
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls" className="hidden" />
+              <button disabled={uploading || !importCompanyCode} onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-all disabled:opacity-50" title={!importCompanyCode ? 'กรุณาเลือกบริษัทก่อนนำเข้าข้อมูล' : ''}>
+                {uploading ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
+                นำเข้า Excel
+              </button>
+            </div>
+            <form onSubmit={handleAddDepartment} className="mb-6">
+              <div className="flex flex-wrap items-stretch gap-2 md:gap-3">
+                <input required type="text" placeholder="รหัสแผนก (Code)" value={newDeptCode} onChange={(e) => setNewDeptCode(e.target.value)} className="px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all basis-40 sm:basis-48 md:basis-56" />
+                <input required type="text" placeholder="ชื่อแผนก (Thai Name)" value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} className="min-w-0 max-w-full flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
+                <button disabled={loading} type="submit" className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-colors disabled:opacity-50 shrink-0"><Plus size={24} /></button>
               </div>
             </form>
             <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
