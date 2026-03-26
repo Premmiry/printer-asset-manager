@@ -48,6 +48,18 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
   const [editingTypePrinterName, setEditingTypePrinterName] = useState('');
 
   const isAdmin = userProfile?.role === 'admin';
+  const [activeTab, setActiveTab] = useState<'departments' | 'companies' | 'catalog' | 'typeprinters' | 'users'>('departments');
+  const tabs: { id: 'departments' | 'companies' | 'catalog' | 'typeprinters' | 'users'; label: string }[] = [
+    { id: 'departments', label: 'แผนก' },
+  ];
+  if (isAdmin) {
+    tabs.push(
+      { id: 'companies', label: 'บริษัท' },
+      { id: 'catalog', label: 'ประเภท/ยี่ห้อ' },
+      { id: 'typeprinters', label: 'ประเภทเครื่องพิมพ์' },
+      { id: 'users', label: 'ผู้ใช้งาน' },
+    );
+  }
 
   useEffect(() => {
     if (!userProfile) return;
@@ -392,9 +404,26 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
       </header>
 
       <main className="max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="mb-4 sm:mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {tabs.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`px-4 py-2 rounded-xl font-bold text-sm border transition-colors ${
+                  activeTab === t.id
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
         
         {/* Admin Only: Company Management */}
-        {isAdmin && (
+        {isAdmin && activeTab === 'companies' && (
           <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -484,6 +513,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         )}
 
         {/* Department Management */}
+        {activeTab === 'departments' && (
         <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 mb-6 sm:mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -651,8 +681,9 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
             )}
           </div>
         </section>
+        )}
         {/* Admin Only: Printer Types and Brands Management */}
-        {isAdmin && (
+        {isAdmin && activeTab === 'catalog' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
             {/* Printer Types */}
             <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100">
@@ -821,7 +852,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         )}
 
         {/* Admin Only: TypePrinters Management */}
-        {isAdmin && (
+        {isAdmin && activeTab === 'typeprinters' && (
           <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -892,7 +923,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         )}
 
         {/* Admin Only: User Management */}
-        {isAdmin && (
+        {isAdmin && activeTab === 'users' && (
           <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
