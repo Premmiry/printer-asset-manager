@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Printer, Department } from '../types';
-import { FileText, Download, Search, Building2, Printer as PrinterIcon, ChevronDown, X as CloseIcon } from 'lucide-react';
+import { FileText, Download, Search, Building2, Printer as PrinterIcon, ChevronDown, ChevronLeft, ChevronRight, X as CloseIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 
@@ -13,6 +13,8 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [deptSearch, setDeptSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   const filteredDepts = departments.filter(d => 
     d.thaiName.toLowerCase().includes(deptSearch.toLowerCase()) ||
@@ -37,6 +39,31 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
       selectedDept === 'all' || d.code === selectedDept
     ).sort((a, b) => b.total - a.total);
   }, [printers, departments, selectedDept]);
+
+  const totalPages = Math.ceil(reportData.length / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentReports = reportData.slice(startIndex, startIndex + itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDept]);
+
+  useEffect(() => {
+    const calcItemsPerPage = () => {
+      if (window.matchMedia('(min-width:1280px)').matches) {
+        setItemsPerPage(16);
+      } else if (window.matchMedia('(min-width:1024px)').matches) {
+        setItemsPerPage(12);
+      } else if (window.matchMedia('(min-width:768px)').matches) {
+        setItemsPerPage(8);
+      } else {
+        setItemsPerPage(6);
+      }
+    };
+    calcItemsPerPage();
+    window.addEventListener('resize', calcItemsPerPage);
+    return () => window.removeEventListener('resize', calcItemsPerPage);
+  }, []);
 
   const exportToExcel = () => {
     const currentYearBE = new Date().getFullYear() + 543;
@@ -80,6 +107,105 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
         </button>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 auto-rows-[minmax(0,1fr)] gap-4 sm:gap-6">
+        {currentReports.map((dept, idx) => (
+          <motion.div
+            key={dept.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.05 }}
+            className="h-full bg-white rounded-3xl border border-slate-100 shadow-md hover:shadow-lg transition-shadow overflow-hidden"
+          >
+            <div className="h-full p-6 bg-gradient-to-br from-white to-slate-50/50 flex flex-col">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
+                    <Building2 size={28} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-lg sm:text-xl">{dept.thaiName}</h3>
+                    
+                  </div>
+                </div>
+                <div className="text-right bg-indigo-600 px-4 py-2 rounded-2xl shadow-sm">
+                  <div className="text-2xl sm:text-3xl font-black text-white leading-none">{dept.total}</div>
+                  <div className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mt-1">ทั้งหมด</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">ขาว-ดำ</div>
+                    <div className="text-2xl font-black text-slate-700">{dept.monoCount}</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center">
+                    <div className="w-4 h-4 rounded-full bg-slate-800" />
+                  </div>
+                </div>
+                <div className="p-4 bg-white border border-rose-50 rounded-2xl shadow-sm flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-1">พิมพ์สี</div>
+                    <div className="text-2xl font-black text-rose-600">{dept.colorCount}</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center">
+                    <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-rose-500 to-indigo-500" />
+                  </div>
+                </div>
+              </div>
+
+              {dept.printers.length > 0 && (
+                <div className="space-y-3 border-t border-slate-100 pt-5">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <PrinterIcon size={12} />
+                    รายการเครื่องพิมพ์
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {dept.printers.map(p => (
+                      <div key={p.id} className="flex items-center justify-between p-3.5 bg-white hover:bg-slate-50 transition-colors rounded-xl border border-slate-100 shadow-sm group">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-500 to-indigo-500' : 'bg-slate-400'}`} />
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors truncate">{p.assetId}</div>
+                            <div className="text-[11px] text-slate-500 font-medium truncate">{p.brand} <span className="text-slate-400">{p.model}</span></div>
+                          </div>
+                        </div>
+                        <div className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-500 font-medium whitespace-nowrap ml-2">
+                          {p.type}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+      
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 pt-6 pb-2">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-slate-700">หน้า {currentPage}</span>
+            <span className="text-sm font-medium text-slate-400">จาก {totalPages}</span>
+          </div>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      )
+      }
       <div className="relative z-20">
         <button
           onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
@@ -164,16 +290,16 @@ export const ReportPage: React.FC<ReportPageProps> = ({ printers, departments })
         </AnimatePresence>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+      <div className="hidden">
         {reportData.map((dept, idx) => (
           <motion.div
             key={dept.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.05 }}
-            className="bg-white rounded-3xl border border-slate-100 shadow-md hover:shadow-lg transition-shadow overflow-hidden"
+            className="h-full bg-white rounded-3xl border border-slate-100 shadow-md hover:shadow-lg transition-shadow overflow-hidden"
           >
-            <div className="p-6 bg-gradient-to-br from-white to-slate-50/50">
+            <div className="h-full p-6 bg-gradient-to-br from-white to-slate-50/50 flex flex-col">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">

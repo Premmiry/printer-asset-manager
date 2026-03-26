@@ -390,7 +390,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-100 px-4 sm:px-6 py-4 sticky top-0 z-40">
-        <div className="max-w-6xl xl:max-w-7xl mx-auto flex items-center gap-4">
+        <div className="w-full flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
             <ChevronLeft size={24} className="text-slate-600" />
           </button>
@@ -403,7 +403,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({ onBack, userProfile }) =
         </div>
       </header>
 
-      <main className="max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="w-full px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-4 sm:mb-6 block md:hidden">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {tabs.map(t => (

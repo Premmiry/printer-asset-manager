@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Printer, Department } from '../types';
 import { Edit2, Trash2, Printer as PrinterIcon, Tag, Layers, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,7 +12,7 @@ interface PrinterListProps {
 
 export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments, onEdit }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   const totalPages = Math.ceil(printers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -29,6 +29,23 @@ export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments,
     }
   };
 
+  useEffect(() => {
+    const calcItemsPerPage = () => {
+      if (window.matchMedia('(min-width:1280px)').matches) {
+        setItemsPerPage(16);
+      } else if (window.matchMedia('(min-width:1024px)').matches) {
+        setItemsPerPage(12);
+      } else if (window.matchMedia('(min-width:768px)').matches) {
+        setItemsPerPage(8);
+      } else {
+        setItemsPerPage(6);
+      }
+    };
+    calcItemsPerPage();
+    window.addEventListener('resize', calcItemsPerPage);
+    return () => window.removeEventListener('resize', calcItemsPerPage);
+  }, []);
+
   if (printers.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-slate-400">
@@ -43,7 +60,7 @@ export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments,
 
   return (
     <div className="space-y-4 pb-24">
-      <div className="grid gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 auto-rows-[minmax(0,1fr)] gap-4 sm:gap-6">
         <AnimatePresence mode="popLayout">
           {currentPrinters.map((printer, index) => (
             <motion.div
@@ -52,9 +69,9 @@ export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments,
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition-all relative group flex flex-col sm:flex-row sm:items-center gap-4"
+              className="h-full bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition-all relative group flex flex-col gap-4"
             >
-              <div className={`p-3 rounded-xl flex-shrink-0 ${printer.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-50 to-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-500'}`}>
+              <div className={`p-3 rounded-xl shrink-0 ${printer.colorMode === 'Color' ? 'bg-gradient-to-tr from-rose-50 to-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-500'}`}>
                 <PrinterIcon size={24} />
               </div>
               
@@ -105,7 +122,7 @@ export const PrinterList: React.FC<PrinterListProps> = ({ printers, departments,
                 </div>
               </div>
 
-              <div className="flex sm:flex-col gap-2 mt-2 sm:mt-0 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-2 mt-auto sm:opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => onEdit(printer)}
                   className="flex-1 sm:flex-none flex items-center justify-center p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition-colors"

@@ -496,7 +496,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-100 px-6 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
+        <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-100">
               <PrinterIcon size={20} className="text-white" />
@@ -536,7 +536,7 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-6 py-8">
+      <main className="w-full px-6 py-8">
         <AnimatePresence>
           {toastMessage.text && (
             <motion.div
@@ -745,7 +745,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Footer Info */}
-      <footer className="max-w-2xl mx-auto px-6 py-12 text-center text-slate-400">
+      <footer className="w-full px-6 py-12 text-center text-slate-400">
         <p className="text-xs font-medium">© 2026 Printer Asset Management System by DevPrem</p>
       </footer>
     </div>
